@@ -1,0 +1,19 @@
+image:
+  registry: 123456789012.dkr.ecr.us-east-1.amazonaws.com
+
+config:
+  awsRegion: us-east-1
+
+services:
+  frontend:
+    autoscaling:
+      minReplicas: 1
+      maxReplicas: 3
+  api:
+    autoscaling:
+      minReplicas: 1
+      maxReplicas: 5
+  worker:
+    autoscaling:
+      minReplicas: 1
+      maxReplicas: 5

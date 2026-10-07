@@ -3,7 +3,7 @@ fullnameOverride: ""
 
 image:
   registry: ""
-  tag: latest
+  tag: "0.1.0"
   pullPolicy: IfNotPresent
 
 config:

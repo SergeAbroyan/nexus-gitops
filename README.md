@@ -21,8 +21,24 @@ Validate or render the chart locally:
 ```bash
 make lint
 make template
+make lint-all
 ```
 
-The default values intentionally leave AWS endpoints and the ECR registry empty.
-Environment-specific values and External Secrets integration will supply them
-without putting credentials in Git.
+`ENVIRONMENT` selects the thin environment override and defaults to `dev`:
+
+```bash
+make template ENVIRONMENT=staging
+make template ENVIRONMENT=production
+```
+
+Shared defaults remain in `charts/nexus/values.yaml`. The files under
+`environments/` contain only values that differ between DEV, STAGING, and
+PRODUCTION. This avoids copying the whole configuration and prevents drift.
+
+Image tags must be immutable. The initial chart uses `0.1.0`; the application
+pipeline will later update an environment to a commit SHA after publishing its
+images instead of reusing mutable tags such as `latest` or `dev`.
+
+The environment files intentionally leave AWS service endpoints in the shared
+defaults until those environments exist. External Secrets integration will
+supply credentials without putting them in Git.
