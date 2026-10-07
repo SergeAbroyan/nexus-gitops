@@ -42,3 +42,19 @@ images instead of reusing mutable tags such as `latest` or `dev`.
 The environment files intentionally leave AWS service endpoints in the shared
 defaults until those environments exist. External Secrets integration will
 supply credentials without putting them in Git.
+
+## Database credentials
+
+The application chart can synchronize the RDS-managed password from AWS
+Secrets Manager. After Terraform creates an environment, set its RDS secret ARN
+and enable synchronization in that environment's values file:
+
+```yaml
+externalSecret:
+  enabled: true
+  remoteSecretKey: arn:aws:secretsmanager:REGION:ACCOUNT:secret:rds-secret
+```
+
+The External Secrets controller uses EKS Pod Identity. The `SecretStore`
+therefore contains no static credentials, IAM role annotation, or authentication
+block. It creates the `nexus-database` Kubernetes Secret consumed by the API.
