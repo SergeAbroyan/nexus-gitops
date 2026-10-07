@@ -13,7 +13,7 @@ spec:
   source:
     repoURL: {{ .Values.git.repository }}
     targetRevision: {{ .Values.git.revision }}
-    path: platform/cloudbeaver
+    path: charts/tools/cloudbeaver
     helm:
       releaseName: cloudbeaver
   destination:

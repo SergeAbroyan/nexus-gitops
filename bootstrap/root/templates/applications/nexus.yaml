@@ -12,7 +12,7 @@ spec:
   sources:
     - repoURL: {{ .Values.git.repository }}
       targetRevision: {{ .Values.git.revision }}
-      path: charts/nexus
+      path: charts/applications/nexus
       helm:
         releaseName: nexus
         valueFiles:

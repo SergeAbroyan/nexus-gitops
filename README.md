@@ -4,6 +4,24 @@ This repository is the deployment source of truth for the Nexus Kubernetes
 platform. Terraform creates AWS infrastructure; Helm describes Kubernetes
 workloads; Argo CD will continuously reconcile this repository into EKS.
 
+## Repository structure
+
+```text
+bootstrap/root/                 Argo CD project and child Application records
+  templates/platform/          Cluster controllers and shared configuration
+  templates/applications/      Nexus application registration
+  templates/tools/             Optional operations-tool registration
+charts/applications/nexus/      Frontend, API, and worker Helm chart
+charts/platform/karpenter/      Node provisioning configuration
+charts/platform/storage/        Encrypted EBS StorageClass
+charts/tools/cloudbeaver/       Internal database administration UI
+environments/<environment>/     Environment-specific Nexus values
+```
+
+Every deployable Helm chart lives below `charts/`. The bootstrap chart contains
+only Argo CD registration and namespace ownership; it does not duplicate the
+workloads defined by those charts.
+
 ## GitOps bootstrap
 
 Terraform installs the pinned Argo CD Helm release after creating EKS. That
@@ -34,7 +52,7 @@ only to lint and render the chart without an AWS environment.
 
 ## Karpenter capacity
 
-The `platform/karpenter` chart defines one hardened EC2 node class and three
+The `charts/platform/karpenter` chart defines one hardened EC2 node class and three
 capacity pools:
 
 - `system` uses On-Demand capacity for platform controllers.
@@ -73,19 +91,19 @@ remains allowed until explicit ServiceEntry policies are introduced.
 
 ## CloudBeaver
 
-The `platform/cloudbeaver` chart provides an internal database administration
+The `charts/tools/cloudbeaver` chart provides an internal database administration
 UI for development and operations. It uses a persistent workspace, runs as the
 non-root UID published by CloudBeaver, and is exposed only by a `ClusterIP`
 Service. Database connections and external ingress are intentionally configured
 later so credentials and public access are not introduced implicitly.
 
-Its workspace uses the `nexus-gp3` StorageClass from `platform/storage`. Volumes
+Its workspace uses the `nexus-gp3` StorageClass from `charts/platform/storage`. Volumes
 are encrypted with the infrastructure-managed EBS KMS key, expand in place, and
 are retained if the claim is deleted.
 
 ## Application chart
 
-The `charts/nexus` chart deploys the frontend, API, and worker with consistent:
+The `charts/applications/nexus` chart deploys the frontend, API, and worker with consistent:
 
 - non-root and read-only container security
 - startup, liveness, and readiness probes
@@ -110,7 +128,7 @@ make template ENVIRONMENT=staging
 make template ENVIRONMENT=production
 ```
 
-Shared defaults remain in `charts/nexus/values.yaml`. The files under
+Shared defaults remain in `charts/applications/nexus/values.yaml`. The files under
 `environments/` contain only values that differ between DEV, STAGING, and
 PRODUCTION. This avoids copying the whole configuration and prevents drift.
 

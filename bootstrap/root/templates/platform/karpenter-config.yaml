@@ -12,7 +12,7 @@ spec:
   source:
     repoURL: {{ .Values.git.repository }}
     targetRevision: {{ .Values.git.revision }}
-    path: platform/karpenter
+    path: charts/platform/karpenter
     helm:
       releaseName: nexus-karpenter-config
       valuesObject:

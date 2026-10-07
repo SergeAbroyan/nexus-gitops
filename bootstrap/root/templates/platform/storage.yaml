@@ -12,7 +12,7 @@ spec:
   source:
     repoURL: {{ .Values.git.repository }}
     targetRevision: {{ .Values.git.revision }}
-    path: platform/storage
+    path: charts/platform/storage
     helm:
       releaseName: nexus-storage-config
       valuesObject:
