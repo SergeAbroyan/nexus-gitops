@@ -1,6 +1,0 @@
-apiVersion: v2
-name: nexus-bootstrap
-description: Registers Nexus platform components with Argo CD
-type: application
-version: 0.1.0
-appVersion: "1.0.0"

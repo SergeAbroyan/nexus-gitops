@@ -7,10 +7,6 @@ workloads; Argo CD will continuously reconcile this repository into EKS.
 ## Repository structure
 
 ```text
-bootstrap/root/                 Argo CD project and child Application records
-  templates/platform/          Cluster controllers and shared configuration
-  templates/applications/      Nexus application registration
-  templates/tools/             Optional operations-tool registration
 charts/applications/nexus/      Frontend, API, and worker Helm chart
 charts/platform/karpenter/      Node provisioning configuration
 charts/platform/storage/        Encrypted EBS StorageClass
@@ -18,27 +14,32 @@ charts/tools/cloudbeaver/       Internal database administration UI
 environments/<environment>/     Environment-specific Nexus values
 ```
 
-Every deployable Helm chart lives below `charts/`. The bootstrap chart contains
-only Argo CD registration and namespace ownership; it does not duplicate the
-workloads defined by those charts.
+Every deployable project-owned Helm chart lives below `charts/`. This repository
+does not contain Argo CD `Application` or `ApplicationSet` resources.
 
 ## GitOps bootstrap
 
 Terraform installs the pinned Argo CD Helm release after creating EKS. That
-release includes one seed Application pointing to `bootstrap/root` in this
-repository. Argo CD then creates the restricted project and registers External
-Secrets automatically.
+release seeds one restricted AppProject and three focused ApplicationSets:
 
-Do not install Argo CD or the root chart manually. Their ownership chain is:
+- external platform charts such as Istio and Karpenter;
+- local platform and operations charts from this repository;
+- Nexus application environments.
+
+The ownership chain is:
 
 ```text
-Terraform -> Argo CD -> bootstrap/root -> platform applications
+Terraform/Terragrunt -> Argo CD -> ApplicationSets -> Helm charts
 ```
+
+ApplicationSet definitions and infrastructure-derived Helm values live in the
+Terraform Argo CD module. This keeps service registration in one location and
+avoids duplicating pointer files in this repository.
 
 External Secrets uses the `external-secrets` service account. Its name and
 namespace exactly match the EKS Pod Identity association created by Terraform.
 
-The same root chart installs the essential cluster controllers:
+The external-platform ApplicationSet installs the essential cluster controllers:
 
 - Metrics Server supplies resource metrics to the Horizontal Pod Autoscalers.
 - AWS Load Balancer Controller manages AWS load balancers for Kubernetes.
@@ -46,9 +47,8 @@ The same root chart installs the essential cluster controllers:
   can be upgraded safely.
 
 Terraform injects the EKS cluster name, AWS region, VPC ID, Karpenter
-interruption queue, and node IAM role into the root chart. The
-`bootstrap/root/test-values.yaml` file contains non-functional identifiers used
-only to lint and render the chart without an AWS environment.
+interruption queue, node IAM role, KMS key, and managed-service endpoints into
+the generated Argo CD Applications.
 
 ## Karpenter capacity
 
@@ -67,7 +67,7 @@ promoting the configuration to production.
 
 ## Nexus application delivery
 
-The root chart registers one Nexus Argo CD application for the environment
+The Nexus ApplicationSet generates one Argo CD application for the environment
 being created by Terraform. Argo CD combines two sources of values:
 
 1. `environments/<environment>/values.yaml` contains versioned operational
@@ -80,10 +80,11 @@ never placed in Terraform state, Argo CD parameters, or Git.
 
 ## Istio service mesh
 
-The root chart installs Istio base, Istio CNI, and Istiod at the same pinned
-version. Istio CNI removes the need for privileged init containers in application
-pods. The `nexus` namespace enables automatic sidecar injection and enforces the
-Restricted Pod Security Standard.
+The external-platform ApplicationSet installs Istio base, Istio CNI, and Istiod
+at the same pinned version. Istio CNI removes the need for privileged init
+containers in application pods. The Nexus chart owns its namespace labels,
+enables automatic sidecar injection, and enforces the Restricted Pod Security
+Standard.
 
 The Nexus chart creates a namespace-wide `PeerAuthentication` policy in
 `STRICT` mode, so mesh traffic must use mutual TLS. External AWS service traffic
@@ -142,15 +143,9 @@ supply credentials without putting them in Git.
 
 ## Database credentials
 
-The application chart can synchronize the RDS-managed password from AWS
-Secrets Manager. After Terraform creates an environment, set its RDS secret ARN
-and enable synchronization in that environment's values file:
-
-```yaml
-externalSecret:
-  enabled: true
-  remoteSecretKey: arn:aws:secretsmanager:REGION:ACCOUNT:secret:rds-secret
-```
+The application chart synchronizes the RDS-managed password from AWS Secrets
+Manager. Terraform passes the environment's secret ARN through the Nexus
+ApplicationSet; the ARN is not hard-coded in an environment values file.
 
 The External Secrets controller uses EKS Pod Identity. The `SecretStore`
 therefore contains no static credentials, IAM role annotation, or authentication
