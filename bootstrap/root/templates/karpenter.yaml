@@ -1,0 +1,68 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: karpenter-crd
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-20"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: nexus-platform
+  source:
+    repoURL: {{ .Values.karpenter.chartRepository }}
+    chart: karpenter-crd
+    targetRevision: {{ .Values.karpenter.chartVersion | quote }}
+    helm:
+      releaseName: karpenter-crd
+  destination:
+    server: {{ .Values.destination.server }}
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: karpenter
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: nexus-platform
+  source:
+    repoURL: {{ .Values.karpenter.chartRepository }}
+    chart: karpenter
+    targetRevision: {{ .Values.karpenter.chartVersion | quote }}
+    helm:
+      releaseName: karpenter
+      valuesObject:
+        serviceAccount:
+          create: true
+          name: {{ .Values.karpenter.serviceAccountName }}
+        settings:
+          clusterName: {{ required "platform.clusterName is required" .Values.platform.clusterName }}
+          interruptionQueue: {{ required "platform.karpenterInterruptionQueueName is required" .Values.platform.karpenterInterruptionQueueName }}
+        controller:
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+  destination:
+    server: {{ .Values.destination.server }}
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true

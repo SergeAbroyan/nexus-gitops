@@ -5,8 +5,29 @@ git:
 destination:
   server: https://kubernetes.default.svc
 
+platform:
+  clusterName: ""
+  awsRegion: ""
+  vpcId: ""
+  karpenterInterruptionQueueName: ""
+  karpenterNodeIamRoleName: ""
+
 externalSecrets:
   chartRepository: https://charts.external-secrets.io
   chartVersion: 2.11.0
   namespace: external-secrets
   serviceAccountName: external-secrets
+
+metricsServer:
+  chartRepository: https://kubernetes-sigs.github.io/metrics-server
+  chartVersion: 3.13.1
+
+awsLoadBalancerController:
+  chartRepository: https://aws.github.io/eks-charts
+  chartVersion: 3.4.3
+  serviceAccountName: aws-load-balancer-controller
+
+karpenter:
+  chartRepository: public.ecr.aws/karpenter
+  chartVersion: 1.14.1
+  serviceAccountName: karpenter

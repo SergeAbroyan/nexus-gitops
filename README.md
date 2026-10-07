@@ -20,6 +20,18 @@ Terraform -> Argo CD -> bootstrap/root -> platform applications
 External Secrets uses the `external-secrets` service account. Its name and
 namespace exactly match the EKS Pod Identity association created by Terraform.
 
+The same root chart installs the essential cluster controllers:
+
+- Metrics Server supplies resource metrics to the Horizontal Pod Autoscalers.
+- AWS Load Balancer Controller manages AWS load balancers for Kubernetes.
+- Karpenter CRDs are managed separately from the Karpenter controller so they
+  can be upgraded safely.
+
+Terraform injects the EKS cluster name, AWS region, VPC ID, Karpenter
+interruption queue, and node IAM role into the root chart. The
+`bootstrap/root/test-values.yaml` file contains non-functional identifiers used
+only to lint and render the chart without an AWS environment.
+
 ## Application chart
 
 The `charts/nexus` chart deploys the frontend, API, and worker with consistent:

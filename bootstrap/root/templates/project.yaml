@@ -8,11 +8,16 @@ spec:
   sourceRepos:
     - {{ .Values.git.repository }}
     - {{ .Values.externalSecrets.chartRepository }}
+    - {{ .Values.metricsServer.chartRepository }}
+    - {{ .Values.awsLoadBalancerController.chartRepository }}
+    - {{ .Values.karpenter.chartRepository }}
   destinations:
     - server: {{ .Values.destination.server }}
       namespace: external-secrets
     - server: {{ .Values.destination.server }}
       namespace: nexus
+    - server: {{ .Values.destination.server }}
+      namespace: kube-system
   clusterResourceWhitelist:
     - group: "*"
       kind: "*"

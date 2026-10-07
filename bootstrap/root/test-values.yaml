@@ -1,0 +1,6 @@
+platform:
+  clusterName: nexus-test
+  awsRegion: us-east-1
+  vpcId: vpc-00000000000000000
+  karpenterInterruptionQueueName: nexus-test-karpenter
+  karpenterNodeIamRoleName: nexus-test-karpenter-node

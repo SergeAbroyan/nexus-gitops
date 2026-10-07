@@ -1,0 +1,39 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: aws-load-balancer-controller
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: nexus-platform
+  source:
+    repoURL: {{ .Values.awsLoadBalancerController.chartRepository }}
+    chart: aws-load-balancer-controller
+    targetRevision: {{ .Values.awsLoadBalancerController.chartVersion | quote }}
+    helm:
+      releaseName: aws-load-balancer-controller
+      valuesObject:
+        clusterName: {{ required "platform.clusterName is required" .Values.platform.clusterName }}
+        region: {{ required "platform.awsRegion is required" .Values.platform.awsRegion }}
+        vpcId: {{ required "platform.vpcId is required" .Values.platform.vpcId }}
+        replicaCount: 2
+        serviceAccount:
+          create: true
+          name: {{ .Values.awsLoadBalancerController.serviceAccountName }}
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+  destination:
+    server: {{ .Values.destination.server }}
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
