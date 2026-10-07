@@ -49,3 +49,8 @@ karpenter:
   chartRepository: public.ecr.aws/karpenter
   chartVersion: 1.14.1
   serviceAccountName: karpenter
+
+istio:
+  chartRepository: https://blob.istio.io/istio-release/charts
+  chartVersion: 1.30.5
+  namespace: istio-system

@@ -11,6 +11,7 @@ spec:
     - {{ .Values.metricsServer.chartRepository }}
     - {{ .Values.awsLoadBalancerController.chartRepository }}
     - {{ .Values.karpenter.chartRepository }}
+    - {{ .Values.istio.chartRepository }}
   destinations:
     - server: {{ .Values.destination.server }}
       namespace: external-secrets
@@ -18,6 +19,8 @@ spec:
       namespace: nexus
     - server: {{ .Values.destination.server }}
       namespace: kube-system
+    - server: {{ .Values.destination.server }}
+      namespace: istio-system
   clusterResourceWhitelist:
     - group: "*"
       kind: "*"

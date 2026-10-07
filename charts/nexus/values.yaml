@@ -152,3 +152,7 @@ containerSecurityContext:
   readOnlyRootFilesystem: true
 
 terminationGracePeriodSeconds: 30
+
+mesh:
+  enabled: true
+  mtlsMode: STRICT

@@ -1,0 +1,125 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: istio-base
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-50"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: nexus-platform
+  source:
+    repoURL: {{ .Values.istio.chartRepository }}
+    chart: base
+    targetRevision: {{ .Values.istio.chartVersion | quote }}
+    helm:
+      releaseName: istio-base
+      valuesObject:
+        defaultRevision: default
+  destination:
+    server: {{ .Values.destination.server }}
+    namespace: {{ .Values.istio.namespace }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: istio-cni
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-40"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: nexus-platform
+  source:
+    repoURL: {{ .Values.istio.chartRepository }}
+    chart: cni
+    targetRevision: {{ .Values.istio.chartVersion | quote }}
+    helm:
+      releaseName: istio-cni
+      valuesObject:
+        cni:
+          excludeNamespaces:
+            - kube-system
+            - istio-system
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+  destination:
+    server: {{ .Values.destination.server }}
+    namespace: {{ .Values.istio.namespace }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: istiod
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-30"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: nexus-platform
+  source:
+    repoURL: {{ .Values.istio.chartRepository }}
+    chart: istiod
+    targetRevision: {{ .Values.istio.chartVersion | quote }}
+    helm:
+      releaseName: istiod
+      valuesObject:
+        pilot:
+          cni:
+            enabled: true
+          nodeSelector:
+            role: system
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+        meshConfig:
+          enablePrometheusMerge: true
+          enableTracing: true
+          defaultConfig:
+            holdApplicationUntilProxyStarts: true
+            tracing:
+              sampling: 1
+          outboundTrafficPolicy:
+            mode: ALLOW_ANY
+        global:
+          proxy:
+            resources:
+              requests:
+                cpu: 50m
+                memory: 64Mi
+              limits:
+                cpu: 500m
+                memory: 256Mi
+  destination:
+    server: {{ .Values.destination.server }}
+    namespace: {{ .Values.istio.namespace }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true

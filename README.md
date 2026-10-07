@@ -60,6 +60,17 @@ being created by Terraform. Argo CD combines two sources of values:
 External Secrets reads the password from that ARN inside EKS. The password is
 never placed in Terraform state, Argo CD parameters, or Git.
 
+## Istio service mesh
+
+The root chart installs Istio base, Istio CNI, and Istiod at the same pinned
+version. Istio CNI removes the need for privileged init containers in application
+pods. The `nexus` namespace enables automatic sidecar injection and enforces the
+Restricted Pod Security Standard.
+
+The Nexus chart creates a namespace-wide `PeerAuthentication` policy in
+`STRICT` mode, so mesh traffic must use mutual TLS. External AWS service traffic
+remains allowed until explicit ServiceEntry policies are introduced.
+
 ## Application chart
 
 The `charts/nexus` chart deploys the frontend, API, and worker with consistent:
