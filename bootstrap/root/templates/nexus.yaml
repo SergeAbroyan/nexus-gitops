@@ -1,0 +1,52 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nexus-{{ required "application.environment is required" .Values.application.environment }}
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "20"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: nexus-platform
+  sources:
+    - repoURL: {{ .Values.git.repository }}
+      targetRevision: {{ .Values.git.revision }}
+      path: charts/nexus
+      helm:
+        releaseName: nexus
+        valueFiles:
+          - $values/environments/{{ .Values.application.environment }}/values.yaml
+        valuesObject:
+          image:
+            registry: {{ required "application.imageRegistry is required" .Values.application.imageRegistry }}
+          config:
+            awsRegion: {{ required "platform.awsRegion is required" .Values.platform.awsRegion }}
+            database:
+              host: {{ required "application.database.host is required" .Values.application.database.host }}
+              port: {{ required "application.database.port is required" .Values.application.database.port | quote }}
+              name: {{ required "application.database.name is required" .Values.application.database.name }}
+              user: {{ required "application.database.username is required" .Values.application.database.username }}
+            valkey:
+              host: {{ required "application.valkey.host is required" .Values.application.valkey.host }}
+              port: {{ required "application.valkey.port is required" .Values.application.valkey.port | quote }}
+              username: {{ required "application.valkey.username is required" .Values.application.valkey.username }}
+              cacheName: {{ required "application.valkey.cacheName is required" .Values.application.valkey.cacheName }}
+            sqs:
+              queueURL: {{ required "application.sqsQueueUrl is required" .Values.application.sqsQueueUrl }}
+          externalSecret:
+            enabled: true
+            remoteSecretKey: {{ required "application.database.secretArn is required" .Values.application.database.secretArn }}
+    - repoURL: {{ .Values.git.repository }}
+      targetRevision: {{ .Values.git.revision }}
+      ref: values
+  destination:
+    server: {{ .Values.destination.server }}
+    namespace: {{ .Values.application.namespace }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

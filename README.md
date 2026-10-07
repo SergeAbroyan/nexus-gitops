@@ -47,6 +47,19 @@ Karpenter discovers private subnets and the EKS node security group through the
 the latest EKS-optimized image for DEV. Pin `amiAlias` to a tested release before
 promoting the configuration to production.
 
+## Nexus application delivery
+
+The root chart registers one Nexus Argo CD application for the environment
+being created by Terraform. Argo CD combines two sources of values:
+
+1. `environments/<environment>/values.yaml` contains versioned operational
+   choices such as replica counts and scaling limits.
+2. Terraform injects non-secret AWS outputs such as service endpoints, the ECR
+   registry, and the RDS Secrets Manager ARN.
+
+External Secrets reads the password from that ARN inside EKS. The password is
+never placed in Terraform state, Argo CD parameters, or Git.
+
 ## Application chart
 
 The `charts/nexus` chart deploys the frontend, API, and worker with consistent:

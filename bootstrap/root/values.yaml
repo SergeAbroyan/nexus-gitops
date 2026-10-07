@@ -13,6 +13,23 @@ platform:
   karpenterNodeIamRoleName: ""
   ebsKmsKeyArn: ""
 
+application:
+  environment: ""
+  namespace: nexus
+  imageRegistry: ""
+  database:
+    host: ""
+    port: ""
+    name: ""
+    username: ""
+    secretArn: ""
+  valkey:
+    host: ""
+    port: ""
+    username: ""
+    cacheName: ""
+  sqsQueueUrl: ""
+
 externalSecrets:
   chartRepository: https://charts.external-secrets.io
   chartVersion: 2.11.0
