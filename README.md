@@ -6,18 +6,16 @@ workloads; Argo CD will continuously reconcile this repository into EKS.
 
 ## GitOps bootstrap
 
-After Terraform creates EKS and `kubectl` points to the cluster, bootstrap the
-GitOps controller and register the root applications:
+Terraform installs the pinned Argo CD Helm release after creating EKS. That
+release includes one seed Application pointing to `bootstrap/root` in this
+repository. Argo CD then creates the restricted project and registers External
+Secrets automatically.
 
-```bash
-make bootstrap-argocd
-make bootstrap-root
+Do not install Argo CD or the root chart manually. Their ownership chain is:
+
+```text
+Terraform -> Argo CD -> bootstrap/root -> platform applications
 ```
-
-`bootstrap-argocd` installs the pinned Argo CD chart. `bootstrap-root` creates a
-restricted Argo CD project and registers External Secrets. After these two
-commands, Argo CD owns the managed platform components; do not install those
-components manually.
 
 External Secrets uses the `external-secrets` service account. Its name and
 namespace exactly match the EKS Pod Identity association created by Terraform.
