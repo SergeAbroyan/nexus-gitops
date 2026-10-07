@@ -1,0 +1,106 @@
+{{- range $serviceName, $service := .Values.services }}
+{{- if $service.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "nexus.serviceName" (dict "root" $ "serviceName" $serviceName) }}
+  labels:
+    {{- include "nexus.labels" $ | nindent 4 }}
+    {{- include "nexus.selectorLabels" (dict "root" $ "serviceName" $serviceName) | nindent 4 }}
+spec:
+  {{- if not $service.autoscaling.enabled }}
+  replicas: {{ $service.replicaCount }}
+  {{- end }}
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      {{- include "nexus.selectorLabels" (dict "root" $ "serviceName" $serviceName) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "nexus.selectorLabels" (dict "root" $ "serviceName" $serviceName) | nindent 8 }}
+    spec:
+      serviceAccountName: {{ $service.serviceAccountName }}
+      automountServiceAccountToken: false
+      securityContext:
+        {{- toYaml $.Values.podSecurityContext | nindent 8 }}
+      terminationGracePeriodSeconds: {{ $.Values.terminationGracePeriodSeconds }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              {{- include "nexus.selectorLabels" (dict "root" $ "serviceName" $serviceName) | nindent 14 }}
+      containers:
+        - name: {{ $serviceName }}
+          image: {{ include "nexus.image" (dict "root" $ "service" $service) | quote }}
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          {{- with $service.command }}
+          command:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          securityContext:
+            {{- toYaml $.Values.containerSecurityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: {{ $service.port }}
+              protocol: TCP
+          {{- if or (eq $serviceName "api") (eq $serviceName "worker") }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "nexus.fullname" $ }}-{{ $serviceName }}
+          {{- end }}
+          {{- if eq $serviceName "frontend" }}
+          env:
+            - name: API_URL
+              value: {{ default (printf "http://%s" (include "nexus.serviceName" (dict "root" $ "serviceName" "api"))) $.Values.config.frontend.apiURL | quote }}
+            {{- with $service.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- else if eq $serviceName "api" }}
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.config.database.secretName }}
+                  key: {{ $.Values.config.database.passwordKey }}
+            {{- with $service.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- else }}
+          {{- with $service.env }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- end }}
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            failureThreshold: 30
+            periodSeconds: 2
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+          resources:
+            {{- toYaml $service.resources | nindent 12 }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,134 @@
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  registry: ""
+  tag: latest
+  pullPolicy: IfNotPresent
+
+config:
+  awsRegion: us-east-1
+  frontend:
+    apiURL: ""
+  database:
+    host: ""
+    port: "5432"
+    name: nexus
+    user: nexus
+    sslMode: require
+    secretName: nexus-database
+    passwordKey: password
+  valkey:
+    host: ""
+    port: "6379"
+    username: ""
+    cacheName: ""
+    iamAuthentication: true
+    tls: true
+    cacheTTL: 30s
+  sqs:
+    queueURL: ""
+    waitTimeSeconds: "20"
+    visibilityTimeoutSeconds: "60"
+
+services:
+  frontend:
+    enabled: true
+    imageRepository: nexus/frontend
+    replicaCount: 2
+    serviceAccountName: frontend
+    command: []
+    port: 8080
+    service:
+      enabled: true
+      port: 80
+    env: []
+    resources:
+      requests:
+        cpu: 50m
+        memory: 32Mi
+      limits:
+        cpu: 200m
+        memory: 64Mi
+    autoscaling:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 5
+      cpuUtilization: 70
+      memoryUtilization: 80
+    disruptionBudget:
+      enabled: true
+      minAvailable: 1
+
+  api:
+    enabled: true
+    imageRepository: nexus/api
+    replicaCount: 2
+    serviceAccountName: api
+    command: []
+    port: 8080
+    service:
+      enabled: true
+      port: 80
+    env: []
+    resources:
+      requests:
+        cpu: 100m
+        memory: 64Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi
+    autoscaling:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 10
+      cpuUtilization: 70
+      memoryUtilization: 80
+    disruptionBudget:
+      enabled: true
+      minAvailable: 1
+
+  worker:
+    enabled: true
+    imageRepository: nexus/worker
+    replicaCount: 2
+    serviceAccountName: worker
+    command: []
+    port: 8080
+    service:
+      enabled: false
+      port: 80
+    env: []
+    resources:
+      requests:
+        cpu: 100m
+        memory: 64Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi
+    autoscaling:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 10
+      cpuUtilization: 70
+      memoryUtilization: 80
+    disruptionBudget:
+      enabled: true
+      minAvailable: 1
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  fsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+
+terminationGracePeriodSeconds: 30
