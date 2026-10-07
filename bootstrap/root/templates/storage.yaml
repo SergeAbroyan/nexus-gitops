@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: storage-config
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: nexus-platform
+  source:
+    repoURL: {{ .Values.git.repository }}
+    targetRevision: {{ .Values.git.revision }}
+    path: platform/storage
+    helm:
+      releaseName: nexus-storage-config
+      valuesObject:
+        kmsKeyArn: {{ required "platform.ebsKmsKeyArn is required" .Values.platform.ebsKmsKeyArn }}
+  destination:
+    server: {{ .Values.destination.server }}
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true

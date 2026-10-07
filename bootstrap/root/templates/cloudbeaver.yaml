@@ -1,0 +1,28 @@
+{{- if .Values.cloudbeaver.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cloudbeaver
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: nexus-platform
+  source:
+    repoURL: {{ .Values.git.repository }}
+    targetRevision: {{ .Values.git.revision }}
+    path: platform/cloudbeaver
+    helm:
+      releaseName: cloudbeaver
+  destination:
+    server: {{ .Values.destination.server }}
+    namespace: {{ .Values.cloudbeaver.namespace }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+{{- end }}

@@ -71,6 +71,18 @@ The Nexus chart creates a namespace-wide `PeerAuthentication` policy in
 `STRICT` mode, so mesh traffic must use mutual TLS. External AWS service traffic
 remains allowed until explicit ServiceEntry policies are introduced.
 
+## CloudBeaver
+
+The `platform/cloudbeaver` chart provides an internal database administration
+UI for development and operations. It uses a persistent workspace, runs as the
+non-root UID published by CloudBeaver, and is exposed only by a `ClusterIP`
+Service. Database connections and external ingress are intentionally configured
+later so credentials and public access are not introduced implicitly.
+
+Its workspace uses the `nexus-gp3` StorageClass from `platform/storage`. Volumes
+are encrypted with the infrastructure-managed EBS KMS key, expand in place, and
+are retained if the claim is deleted.
+
 ## Application chart
 
 The `charts/nexus` chart deploys the frontend, API, and worker with consistent:

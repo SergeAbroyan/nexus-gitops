@@ -54,3 +54,7 @@ istio:
   chartRepository: https://blob.istio.io/istio-release/charts
   chartVersion: 1.30.5
   namespace: istio-system
+
+cloudbeaver:
+  enabled: true
+  namespace: cloudbeaver

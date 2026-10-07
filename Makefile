@@ -17,6 +17,8 @@ lint-all:
 	helm lint $(CHART) --values environments/production/values.yaml
 	helm lint $(BOOTSTRAP_CHART) --values $(BOOTSTRAP_TEST_VALUES)
 	helm lint $(KARPENTER_CONFIG_CHART) --values $(KARPENTER_TEST_VALUES)
+	helm lint platform/storage --values platform/storage/test-values.yaml
+	helm lint platform/cloudbeaver
 
 lint-bootstrap:
 	helm lint $(BOOTSTRAP_CHART) --values $(BOOTSTRAP_TEST_VALUES)

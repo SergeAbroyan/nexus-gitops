@@ -1,0 +1,22 @@
+image:
+  repository: dbeaver/cloudbeaver
+  tag: 26.2.1
+  pullPolicy: IfNotPresent
+
+service:
+  port: 8978
+
+persistence:
+  storageClassName: nexus-gp3
+  size: 5Gi
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 2Gi
+
+nodeSelector:
+  role: general

@@ -21,6 +21,8 @@ spec:
       namespace: kube-system
     - server: {{ .Values.destination.server }}
       namespace: istio-system
+    - server: {{ .Values.destination.server }}
+      namespace: cloudbeaver
   clusterResourceWhitelist:
     - group: "*"
       kind: "*"

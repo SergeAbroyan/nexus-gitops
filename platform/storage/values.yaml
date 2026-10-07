@@ -1,0 +1,3 @@
+storageClassName: nexus-gp3
+kmsKeyArn: ""
+reclaimPolicy: Retain
