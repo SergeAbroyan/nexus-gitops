@@ -1,0 +1,21 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: nexus-platform
+  namespace: argocd
+spec:
+  description: Nexus platform controllers and applications
+  sourceRepos:
+    - {{ .Values.git.repository }}
+    - {{ .Values.externalSecrets.chartRepository }}
+  destinations:
+    - server: {{ .Values.destination.server }}
+      namespace: external-secrets
+    - server: {{ .Values.destination.server }}
+      namespace: nexus
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"

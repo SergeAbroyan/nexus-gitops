@@ -1,0 +1,12 @@
+git:
+  repository: https://github.com/SergeAbroyan/nexus-gitops.git
+  revision: main
+
+destination:
+  server: https://kubernetes.default.svc
+
+externalSecrets:
+  chartRepository: https://charts.external-secrets.io
+  chartVersion: 2.11.0
+  namespace: external-secrets
+  serviceAccountName: external-secrets

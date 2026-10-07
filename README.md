@@ -4,6 +4,24 @@ This repository is the deployment source of truth for the Nexus Kubernetes
 platform. Terraform creates AWS infrastructure; Helm describes Kubernetes
 workloads; Argo CD will continuously reconcile this repository into EKS.
 
+## GitOps bootstrap
+
+After Terraform creates EKS and `kubectl` points to the cluster, bootstrap the
+GitOps controller and register the root applications:
+
+```bash
+make bootstrap-argocd
+make bootstrap-root
+```
+
+`bootstrap-argocd` installs the pinned Argo CD chart. `bootstrap-root` creates a
+restricted Argo CD project and registers External Secrets. After these two
+commands, Argo CD owns the managed platform components; do not install those
+components manually.
+
+External Secrets uses the `external-secrets` service account. Its name and
+namespace exactly match the EKS Pod Identity association created by Terraform.
+
 ## Application chart
 
 The `charts/nexus` chart deploys the frontend, API, and worker with consistent:
