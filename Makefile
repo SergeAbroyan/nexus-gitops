@@ -1,6 +1,8 @@
 CHART := charts/nexus
 BOOTSTRAP_CHART := bootstrap/root
 BOOTSTRAP_TEST_VALUES := bootstrap/root/test-values.yaml
+KARPENTER_CONFIG_CHART := platform/karpenter
+KARPENTER_TEST_VALUES := platform/karpenter/test-values.yaml
 ENVIRONMENT ?= dev
 ENVIRONMENT_VALUES := environments/$(ENVIRONMENT)/values.yaml
 
@@ -14,6 +16,7 @@ lint-all:
 	helm lint $(CHART) --values environments/staging/values.yaml
 	helm lint $(CHART) --values environments/production/values.yaml
 	helm lint $(BOOTSTRAP_CHART) --values $(BOOTSTRAP_TEST_VALUES)
+	helm lint $(KARPENTER_CONFIG_CHART) --values $(KARPENTER_TEST_VALUES)
 
 lint-bootstrap:
 	helm lint $(BOOTSTRAP_CHART) --values $(BOOTSTRAP_TEST_VALUES)

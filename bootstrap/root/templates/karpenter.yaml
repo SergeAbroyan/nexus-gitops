@@ -49,6 +49,8 @@ spec:
         settings:
           clusterName: {{ required "platform.clusterName is required" .Values.platform.clusterName }}
           interruptionQueue: {{ required "platform.karpenterInterruptionQueueName is required" .Values.platform.karpenterInterruptionQueueName }}
+        nodeSelector:
+          role: system
         controller:
           resources:
             requests:

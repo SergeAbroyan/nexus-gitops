@@ -21,6 +21,8 @@ spec:
         serviceAccount:
           create: true
           name: {{ .Values.awsLoadBalancerController.serviceAccountName }}
+        nodeSelector:
+          role: system
         resources:
           requests:
             cpu: 100m

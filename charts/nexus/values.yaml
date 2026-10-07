@@ -50,6 +50,9 @@ services:
       enabled: true
       port: 80
     env: []
+    nodeSelector:
+      role: general
+    tolerations: []
     resources:
       requests:
         cpu: 50m
@@ -78,6 +81,9 @@ services:
       enabled: true
       port: 80
     env: []
+    nodeSelector:
+      role: general
+    tolerations: []
     resources:
       requests:
         cpu: 100m
@@ -106,6 +112,13 @@ services:
       enabled: false
       port: 80
     env: []
+    nodeSelector:
+      role: spot
+    tolerations:
+      - key: nexus.io/capacity
+        operator: Equal
+        value: spot
+        effect: NoSchedule
     resources:
       requests:
         cpu: 100m

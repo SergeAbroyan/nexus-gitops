@@ -1,0 +1,31 @@
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: nexus
+spec:
+  role: {{ required "nodeRoleName is required" .Values.nodeRoleName | quote }}
+  amiSelectorTerms:
+    - alias: {{ .Values.amiAlias | quote }}
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: {{ required "clusterName is required" .Values.clusterName | quote }}
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: {{ .Values.clusterName | quote }}
+  metadataOptions:
+    httpEndpoint: enabled
+    httpProtocolIPv6: disabled
+    httpPutResponseHopLimit: 1
+    httpTokens: required
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        volumeSize: {{ .Values.nodeClass.rootVolumeSize }}
+        volumeType: {{ .Values.nodeClass.rootVolumeType }}
+        encrypted: true
+        kmsKeyID: {{ required "ebsKmsKeyArn is required" .Values.ebsKmsKeyArn | quote }}
+        deleteOnTermination: true
+  tags:
+    Name: {{ .Values.clusterName }}-karpenter
+    ManagedBy: Karpenter
+    Project: nexus

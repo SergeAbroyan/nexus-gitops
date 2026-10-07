@@ -32,6 +32,21 @@ interruption queue, and node IAM role into the root chart. The
 `bootstrap/root/test-values.yaml` file contains non-functional identifiers used
 only to lint and render the chart without an AWS environment.
 
+## Karpenter capacity
+
+The `platform/karpenter` chart defines one hardened EC2 node class and three
+capacity pools:
+
+- `system` uses On-Demand capacity for platform controllers.
+- `general` uses On-Demand capacity for the frontend and API.
+- `spot` is tainted and accepts only explicitly tolerant workloads such as the
+  asynchronous worker.
+
+Karpenter discovers private subnets and the EKS node security group through the
+`karpenter.sh/discovery` tag created by Terraform. The default AL2023 alias tracks
+the latest EKS-optimized image for DEV. Pin `amiAlias` to a tested release before
+promoting the configuration to production.
+
 ## Application chart
 
 The `charts/nexus` chart deploys the frontend, API, and worker with consistent:

@@ -11,6 +11,7 @@ platform:
   vpcId: ""
   karpenterInterruptionQueueName: ""
   karpenterNodeIamRoleName: ""
+  ebsKmsKeyArn: ""
 
 externalSecrets:
   chartRepository: https://charts.external-secrets.io
