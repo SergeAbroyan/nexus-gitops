@@ -44,6 +44,8 @@ The external-platform ApplicationSet installs the essential cluster controllers:
 
 - Metrics Server supplies resource metrics to the Horizontal Pod Autoscalers.
 - AWS Load Balancer Controller manages AWS load balancers for Kubernetes.
+- ExternalDNS publishes annotated load-balancer Services in the delegated
+  Route 53 zone.
 - Karpenter CRDs are managed separately from the Karpenter controller so they
   can be upgraded safely.
 
@@ -93,9 +95,11 @@ remains allowed until explicit ServiceEntry policies are introduced.
 
 The `charts/platform/ingress` chart owns the shared Istio `Gateway` and Nexus
 route. `/api` traffic goes to the API service and all other paths go to the
-frontend. The gateway's AWS NLB is internal-only until DNS, a trusted TLS
-certificate, and an explicit public-access decision are available. Grafana and
-CloudBeaver remain unexposed.
+frontend. Port 80 redirects to HTTPS. The internal AWS NLB terminates TLS with
+the ACM certificate supplied by Terraform and forwards decrypted HTTP to the
+gateway's port 8443. ExternalDNS creates the hostname from the Service
+annotation. Because the NLB remains internal, clients still need VPC network
+access; Grafana and CloudBeaver remain unexposed.
 
 ## CloudBeaver
 

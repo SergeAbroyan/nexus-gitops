@@ -12,3 +12,11 @@ spec:
         protocol: HTTP
       hosts:
         - {{ .Values.host | quote }}
+      tls:
+        httpsRedirect: true
+    - port:
+        number: 8443
+        name: https-terminated
+        protocol: HTTP
+      hosts:
+        - {{ .Values.host | quote }}
