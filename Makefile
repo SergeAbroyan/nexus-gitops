@@ -8,7 +8,7 @@ CLOUDBEAVER_CHART := charts/tools/cloudbeaver
 ENVIRONMENT ?= dev
 ENVIRONMENT_VALUES := environments/$(ENVIRONMENT)/values.yaml
 
-.PHONY: lint lint-all template
+.PHONY: lint lint-all template template-all
 
 lint:
 	helm lint $(APPLICATION_CHART) --values $(ENVIRONMENT_VALUES)
@@ -24,3 +24,12 @@ lint-all:
 
 template:
 	helm template nexus $(APPLICATION_CHART) --namespace nexus --values $(ENVIRONMENT_VALUES)
+
+template-all:
+	helm template nexus-dev $(APPLICATION_CHART) --namespace nexus --values environments/dev/values.yaml > /dev/null
+	helm template nexus-staging $(APPLICATION_CHART) --namespace nexus --values environments/staging/values.yaml > /dev/null
+	helm template nexus-production $(APPLICATION_CHART) --namespace nexus --values environments/production/values.yaml > /dev/null
+	helm template karpenter-config $(KARPENTER_CHART) --namespace kube-system --values $(KARPENTER_TEST_VALUES) > /dev/null
+	helm template storage-config $(STORAGE_CHART) --namespace kube-system --values $(STORAGE_TEST_VALUES) > /dev/null
+	helm template ingress-config $(INGRESS_CHART) --namespace istio-ingress > /dev/null
+	helm template cloudbeaver $(CLOUDBEAVER_CHART) --namespace cloudbeaver > /dev/null

@@ -131,7 +131,15 @@ Validate or render the chart locally:
 make lint
 make template
 make lint-all
+make template-all
 ```
+
+## Continuous validation
+
+`.github/workflows/validate.yaml` runs on pull requests and pushes to `main`.
+It uses a pinned Helm version to lint every project-owned chart and render all
+application environments plus every platform chart. The workflow has only
+read access and never connects to AWS or the Kubernetes cluster.
 
 `ENVIRONMENT` selects the thin environment override and defaults to `dev`:
 
