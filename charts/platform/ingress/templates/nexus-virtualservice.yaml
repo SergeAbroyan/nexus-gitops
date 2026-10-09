@@ -1,0 +1,25 @@
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: nexus
+spec:
+  hosts:
+    - {{ .Values.host | quote }}
+  gateways:
+    - {{ .Values.gateway.name }}
+  http:
+    - name: api
+      match:
+        - uri:
+            prefix: /api
+      route:
+        - destination:
+            host: {{ printf "%s.%s.svc.cluster.local" .Values.nexus.apiService .Values.nexus.namespace }}
+            port:
+              number: {{ .Values.nexus.servicePort }}
+    - name: frontend
+      route:
+        - destination:
+            host: {{ printf "%s.%s.svc.cluster.local" .Values.nexus.frontendService .Values.nexus.namespace }}
+            port:
+              number: {{ .Values.nexus.servicePort }}

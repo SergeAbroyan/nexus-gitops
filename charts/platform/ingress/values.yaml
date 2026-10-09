@@ -1,0 +1,12 @@
+host: "*"
+
+gateway:
+  name: nexus-ingress
+  selector:
+    istio: ingress
+
+nexus:
+  namespace: nexus
+  frontendService: nexus-frontend
+  apiService: nexus-api
+  servicePort: 80

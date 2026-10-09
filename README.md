@@ -10,6 +10,7 @@ workloads; Argo CD will continuously reconcile this repository into EKS.
 charts/applications/nexus/      Frontend, API, and worker Helm chart
 charts/platform/karpenter/      Node provisioning configuration
 charts/platform/storage/        Encrypted EBS StorageClass
+charts/platform/ingress/        Internal Istio gateway routing
 charts/tools/cloudbeaver/       Internal database administration UI
 environments/<environment>/     Environment-specific Nexus values
 ```
@@ -89,6 +90,12 @@ Standard.
 The Nexus chart creates a namespace-wide `PeerAuthentication` policy in
 `STRICT` mode, so mesh traffic must use mutual TLS. External AWS service traffic
 remains allowed until explicit ServiceEntry policies are introduced.
+
+The `charts/platform/ingress` chart owns the shared Istio `Gateway` and Nexus
+route. `/api` traffic goes to the API service and all other paths go to the
+frontend. The gateway's AWS NLB is internal-only until DNS, a trusted TLS
+certificate, and an explicit public-access decision are available. Grafana and
+CloudBeaver remain unexposed.
 
 ## CloudBeaver
 
