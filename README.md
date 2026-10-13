@@ -155,8 +155,12 @@ make template-all
 
 `.github/workflows/validate.yaml` runs on pull requests and pushes to `main`.
 It uses a pinned Helm version to lint every project-owned chart and render all
-application environments plus every platform chart. The workflow has only
-read access and never connects to AWS or the Kubernetes cluster.
+application environments plus every platform chart. Kubeconform validates the
+rendered built-in resources against Kubernetes 1.35 schemas, while Kyverno
+enforces the repository's workload security policies. Custom resources are
+still rendered and evaluated by policy, but schema validation skips them when
+their external CRD schema is unavailable. The workflow has only read access
+and never connects to AWS or the Kubernetes cluster.
 
 `ENVIRONMENT` selects the thin environment override and defaults to `dev`:
 

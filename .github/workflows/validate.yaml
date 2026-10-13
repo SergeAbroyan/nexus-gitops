@@ -31,3 +31,27 @@ jobs:
 
       - name: Render every environment and platform chart
         run: make template-all
+
+      - name: Render manifests for validation
+        run: make render-all
+
+      - name: Validate Kubernetes schemas
+        uses: docker://ghcr.io/yannh/kubeconform:v0.7.0
+        with:
+          args: >-
+            -kubernetes-version 1.35.0
+            -strict
+            -summary
+            -ignore-missing-schemas
+            .rendered
+
+      - name: Install Kyverno CLI
+        uses: kyverno/action-install-cli@v0.2.0
+        with:
+          release: v1.19.1
+
+      - name: Enforce workload security policies
+        run: |
+          for manifest in .rendered/*.yaml; do
+            kyverno apply policies --resource "${manifest}" --warnings-as-errors
+          done

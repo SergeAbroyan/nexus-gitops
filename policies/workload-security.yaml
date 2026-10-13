@@ -1,0 +1,52 @@
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: require-workload-security
+spec:
+  validationActions:
+    - Deny
+  matchConstraints:
+    resourceRules:
+      - apiGroups:
+          - apps
+        apiVersions:
+          - v1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - deployments
+          - statefulsets
+          - daemonsets
+  validations:
+    - message: Workloads must run as non-root.
+      expression: >-
+        has(object.spec.template.spec.securityContext) &&
+        object.spec.template.spec.securityContext.runAsNonRoot == true
+
+    - message: Workloads must use the RuntimeDefault seccomp profile.
+      expression: >-
+        has(object.spec.template.spec.securityContext) &&
+        has(object.spec.template.spec.securityContext.seccompProfile) &&
+        object.spec.template.spec.securityContext.seccompProfile.type == 'RuntimeDefault'
+
+    - message: Containers must disable privilege escalation and drop all Linux capabilities.
+      expression: >-
+        object.spec.template.spec.containers.all(container,
+          has(container.securityContext) &&
+          container.securityContext.allowPrivilegeEscalation == false &&
+          has(container.securityContext.capabilities) &&
+          container.securityContext.capabilities.drop.exists(capability, capability == 'ALL')
+        )
+
+    - message: Containers must define CPU and memory requests and limits.
+      expression: >-
+        object.spec.template.spec.containers.all(container,
+          has(container.resources) &&
+          has(container.resources.requests) &&
+          has(container.resources.requests.cpu) &&
+          has(container.resources.requests.memory) &&
+          has(container.resources.limits) &&
+          has(container.resources.limits.cpu) &&
+          has(container.resources.limits.memory)
+        )
