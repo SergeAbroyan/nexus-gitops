@@ -105,6 +105,11 @@ an elevated Istio 5xx response rate. Terraform configures the Prometheus
 Operator selectors to discover PodMonitor and PrometheusRule resources in
 the Nexus namespace.
 
+The version-controlled `Nexus Overview` Grafana dashboard shows target
+availability, application request rate, CPU usage, memory working set, and
+Istio 5xx ratio. Grafana's sidecar discovers the dashboard ConfigMap across
+namespaces, so no dashboard needs to be imported manually.
+
 The `charts/platform/ingress` chart owns the shared Istio `Gateway` and Nexus
 route. `/api` traffic goes to the API service and all other paths go to the
 frontend. Port 80 redirects to HTTPS. The internal AWS NLB terminates TLS with

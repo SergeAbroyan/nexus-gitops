@@ -1,0 +1,12 @@
+{{- if .Values.observability.dashboard.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "nexus.fullname" . }}-dashboard
+  labels:
+    {{- include "nexus.labels" . | nindent 4 }}
+    grafana_dashboard: "1"
+data:
+  nexus-overview.json: |
+    {{- tpl (.Files.Get "dashboards/nexus-overview.json") . | nindent 4 }}
+{{- end }}

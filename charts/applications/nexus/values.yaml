@@ -159,6 +159,8 @@ mesh:
 
 observability:
   enabled: true
+  dashboard:
+    enabled: true
   scrapeInterval: 30s
   targetDownFor: 5m
   highErrorRateFor: 10m
