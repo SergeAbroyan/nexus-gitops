@@ -8,6 +8,18 @@ spec:
   gateways:
     - {{ .Values.gateway.name }}
   http:
+    - name: internal-endpoints
+      match:
+        - uri:
+            exact: /metrics
+        - uri:
+            exact: /healthz
+        - uri:
+            exact: /readyz
+      directResponse:
+        status: 404
+        body:
+          string: Not found
     - name: api
       match:
         - uri:

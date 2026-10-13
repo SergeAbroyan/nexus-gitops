@@ -93,6 +93,18 @@ The Nexus chart creates a namespace-wide `PeerAuthentication` policy in
 `STRICT` mode, so mesh traffic must use mutual TLS. External AWS service traffic
 remains allowed until explicit ServiceEntry policies are introduced.
 
+## Application observability
+
+The Nexus chart creates a PodMonitor for the frontend, API, and worker. Istio
+merges each application's `/metrics` endpoint into its monitoring endpoint, so
+Prometheus scrapes port `15020` without weakening the namespace's strict mTLS
+policy. The worker therefore remains without a Kubernetes Service.
+
+The chart also creates Prometheus alerts for an unavailable scrape target and
+an elevated Istio 5xx response rate. Terraform configures the Prometheus
+Operator selectors to discover PodMonitor and PrometheusRule resources in
+the Nexus namespace.
+
 The `charts/platform/ingress` chart owns the shared Istio `Gateway` and Nexus
 route. `/api` traffic goes to the API service and all other paths go to the
 frontend. Port 80 redirects to HTTPS. The internal AWS NLB terminates TLS with

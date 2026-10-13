@@ -23,6 +23,10 @@ spec:
       {{- include "nexus.selectorLabels" (dict "root" $ "serviceName" $serviceName) | nindent 6 }}
   template:
     metadata:
+      annotations:
+        prometheus.io/scrape: {{ $.Values.observability.enabled | quote }}
+        prometheus.io/path: /metrics
+        prometheus.io/port: {{ $service.port | quote }}
       labels:
         {{- include "nexus.selectorLabels" (dict "root" $ "serviceName" $serviceName) | nindent 8 }}
     spec:
