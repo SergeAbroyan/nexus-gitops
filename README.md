@@ -120,6 +120,10 @@ availability, application request rate, CPU usage, memory working set, Istio
 sidecar discovers the dashboard ConfigMap across namespaces, so no dashboard
 needs to be imported manually.
 
+Operational response procedures live in [`docs/runbooks`](docs/runbooks/README.md).
+Every Prometheus application alert includes a `runbook_url` annotation, while
+the runbook index maps AWS CloudWatch alarm names to their response procedure.
+
 The `charts/platform/ingress` chart owns the shared Istio `Gateway` and Nexus
 route. `/api` traffic goes to the API service and all other paths go to the
 frontend. Port 80 redirects to HTTPS. The internal AWS NLB terminates TLS with
