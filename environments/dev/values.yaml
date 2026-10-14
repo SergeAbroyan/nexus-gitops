@@ -1,5 +1,6 @@
 image:
   registry: 123456789012.dkr.ecr.us-east-1.amazonaws.com
+  tag: "0.1.0"
 
 config:
   awsRegion: us-east-1

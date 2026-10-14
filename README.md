@@ -187,9 +187,12 @@ Shared defaults remain in `charts/applications/nexus/values.yaml`. The files und
 `environments/` contain only values that differ between DEV, STAGING, and
 PRODUCTION. This avoids copying the whole configuration and prevents drift.
 
-Image tags must be immutable. The initial chart uses `0.1.0`; the application
-pipeline will later update an environment to a commit SHA after publishing its
-images instead of reusing mutable tags such as `latest` or `dev`.
+Image tags must be immutable. DEV explicitly starts at `0.1.0`; after all three
+service images are published successfully, the application pipeline updates
+the DEV value to their shared commit SHA. This makes frontend, API, and worker
+one atomic release and avoids mutable tags such as `latest` or `dev`. Staging
+and production advance only through deliberate GitOps promotion of an already
+tested SHA.
 
 The environment files intentionally leave AWS service endpoints in the shared
 defaults until those environments exist. External Secrets integration will
