@@ -69,28 +69,29 @@ spec:
             - configMapRef:
                 name: {{ include "nexus.fullname" $ }}-{{ $serviceName }}
           {{- end }}
-          {{- if eq $serviceName "frontend" }}
+          {{- if or $.Values.observability.tracing.enabled (eq $serviceName "frontend") (eq $serviceName "api") $service.env }}
           env:
+            {{- if $.Values.observability.tracing.enabled }}
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ required "observability.tracing.endpoint is required when tracing is enabled" $.Values.observability.tracing.endpoint | quote }}
+            - name: OTEL_TRACES_SAMPLER_ARG
+              value: {{ required "observability.tracing.sampleRatio is required when tracing is enabled" $.Values.observability.tracing.sampleRatio | quote }}
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: {{ printf "deployment.environment.name=%s" $.Values.observability.tracing.environment | quote }}
+            {{- end }}
+            {{- if eq $serviceName "frontend" }}
             - name: API_URL
               value: {{ default (printf "http://%s" (include "nexus.serviceName" (dict "root" $ "serviceName" "api"))) $.Values.config.frontend.apiURL | quote }}
-            {{- with $service.env }}
-            {{- toYaml . | nindent 12 }}
-            {{- end }}
-          {{- else if eq $serviceName "api" }}
-          env:
+            {{- else if eq $serviceName "api" }}
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ $.Values.config.database.secretName }}
                   key: {{ $.Values.config.database.passwordKey }}
+            {{- end }}
             {{- with $service.env }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
-          {{- else }}
-          {{- with $service.env }}
-          env:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
           {{- end }}
           startupProbe:
             httpGet:

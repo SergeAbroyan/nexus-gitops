@@ -159,6 +159,11 @@ mesh:
 
 observability:
   enabled: true
+  tracing:
+    enabled: true
+    endpoint: http://otel-traces.monitoring.svc.cluster.local:4317
+    environment: development
+    sampleRatio: "0.01"
   dashboard:
     enabled: true
   scrapeInterval: 30s

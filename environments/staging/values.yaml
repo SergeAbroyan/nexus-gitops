@@ -4,6 +4,10 @@ image:
 config:
   awsRegion: us-east-1
 
+observability:
+  tracing:
+    environment: staging
+
 services:
   frontend:
     autoscaling:

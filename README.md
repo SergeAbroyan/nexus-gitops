@@ -105,6 +105,13 @@ an elevated Istio 5xx response rate. Terraform configures the Prometheus
 Operator selectors to discover PodMonitor and PrometheusRule resources in
 the Nexus namespace.
 
+The chart supplies every service with the internal OpenTelemetry trace-gateway
+endpoint and the current deployment environment. Application spans are sent to
+the gateway, then batched and forwarded to Tempo. The endpoint is a shared chart
+setting because all Nexus services use the same in-cluster collector; individual
+service `env` lists remain available for service-specific overrides. The shared
+1% sampling ratio also covers root spans created by asynchronous workers.
+
 The version-controlled `Nexus Overview` Grafana dashboard shows target
 availability, application request rate, CPU usage, memory working set, and
 Istio 5xx ratio. Grafana's sidecar discovers the dashboard ConfigMap across
