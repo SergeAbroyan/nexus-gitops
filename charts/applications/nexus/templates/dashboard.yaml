@@ -7,6 +7,8 @@ metadata:
     {{- include "nexus.labels" . | nindent 4 }}
     grafana_dashboard: "1"
 data:
-  nexus-overview.json: |
-    {{- tpl (.Files.Get "dashboards/nexus-overview.json") . | nindent 4 }}
+  {{- range $path, $content := .Files.Glob "dashboards/*.json" }}
+  {{ base $path }}: |
+    {{- tpl ($content | toString) $ | nindent 4 }}
+  {{- end }}
 {{- end }}

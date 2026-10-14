@@ -1,0 +1,194 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 80 }] },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "legend": { "calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [{
+        "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+        "dimensions": { "DBInstanceIdentifier": ["*"] },
+        "matchExact": true,
+        "metricName": "CPUUtilization",
+        "namespace": "AWS/RDS",
+        "period": "300",
+        "queryMode": "Metrics",
+        "refId": "A",
+        "region": "default",
+        "statistic": "Average"
+      }],
+      "title": "RDS CPU utilization",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never" },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "id": 2,
+      "options": { "legend": { "calcs": ["lastNotNull", "min"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "asc" } },
+      "targets": [{
+        "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+        "dimensions": { "DBInstanceIdentifier": ["*"] },
+        "matchExact": true,
+        "metricName": "FreeStorageSpace",
+        "namespace": "AWS/RDS",
+        "period": "300",
+        "queryMode": "Metrics",
+        "refId": "A",
+        "region": "default",
+        "statistic": "Minimum"
+      }],
+      "title": "RDS free storage",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 80 }] },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "id": 3,
+      "options": { "legend": { "calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [{
+        "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+        "dimensions": { "CacheClusterId": ["*"] },
+        "matchExact": true,
+        "metricName": "DatabaseMemoryUsagePercentage",
+        "namespace": "AWS/ElastiCache",
+        "period": "300",
+        "queryMode": "Metrics",
+        "refId": "A",
+        "region": "default",
+        "statistic": "Average"
+      }],
+      "title": "Valkey memory utilization",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 80 }] },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "id": 4,
+      "options": { "legend": { "calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [{
+        "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+        "dimensions": { "CacheClusterId": ["*"] },
+        "matchExact": true,
+        "metricName": "EngineCPUUtilization",
+        "namespace": "AWS/ElastiCache",
+        "period": "300",
+        "queryMode": "Metrics",
+        "refId": "A",
+        "region": "default",
+        "statistic": "Average"
+      }],
+      "title": "Valkey engine CPU utilization",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 300 }] },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "id": 5,
+      "options": { "legend": { "calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [{
+        "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+        "dimensions": { "QueueName": ["*"] },
+        "matchExact": true,
+        "metricName": "ApproximateAgeOfOldestMessage",
+        "namespace": "AWS/SQS",
+        "period": "300",
+        "queryMode": "Metrics",
+        "refId": "A",
+        "region": "default",
+        "statistic": "Maximum"
+      }],
+      "title": "SQS oldest message age",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never" },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "id": 6,
+      "options": { "legend": { "calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [{
+        "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+        "dimensions": { "QueueName": ["*"] },
+        "matchExact": true,
+        "metricName": "ApproximateNumberOfMessagesVisible",
+        "namespace": "AWS/SQS",
+        "period": "300",
+        "queryMode": "Metrics",
+        "refId": "A",
+        "region": "default",
+        "statistic": "Maximum"
+      }],
+      "title": "SQS visible messages",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "1m",
+  "schemaVersion": 41,
+  "tags": ["nexus", "aws", "infrastructure"],
+  "templating": { "list": [] },
+  "time": { "from": "now-6h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Nexus AWS Overview",
+  "uid": "nexus-aws-overview",
+  "version": 1,
+  "weekStart": ""
+}
