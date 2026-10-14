@@ -100,10 +100,12 @@ merges each application's `/metrics` endpoint into its monitoring endpoint, so
 Prometheus scrapes port `15020` without weakening the namespace's strict mTLS
 policy. The worker therefore remains without a Kubernetes Service.
 
-The chart also creates Prometheus alerts for an unavailable scrape target and
-an elevated Istio 5xx response rate. Terraform configures the Prometheus
-Operator selectors to discover PodMonitor and PrometheusRule resources in
-the Nexus namespace.
+The chart also creates Prometheus alerts for an unavailable scrape target, an
+elevated Istio 5xx response rate, and sustained high 95th-percentile request
+latency. The alert durations and thresholds are chart values, so each
+environment can tune them without modifying the templates. Terraform configures
+the Prometheus Operator selectors to discover PodMonitor and PrometheusRule
+resources in the Nexus namespace.
 
 The chart supplies every service with the internal OpenTelemetry trace-gateway
 endpoint and the current deployment environment. Application spans are sent to
@@ -113,9 +115,10 @@ service `env` lists remain available for service-specific overrides. The shared
 1% sampling ratio also covers root spans created by asynchronous workers.
 
 The version-controlled `Nexus Overview` Grafana dashboard shows target
-availability, application request rate, CPU usage, memory working set, and
-Istio 5xx ratio. Grafana's sidecar discovers the dashboard ConfigMap across
-namespaces, so no dashboard needs to be imported manually.
+availability, application request rate, CPU usage, memory working set, Istio
+5xx ratio, and 95th-percentile request latency by destination service. Grafana's
+sidecar discovers the dashboard ConfigMap across namespaces, so no dashboard
+needs to be imported manually.
 
 The `charts/platform/ingress` chart owns the shared Istio `Gateway` and Nexus
 route. `/api` traffic goes to the API service and all other paths go to the

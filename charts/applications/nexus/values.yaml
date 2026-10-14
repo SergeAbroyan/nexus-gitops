@@ -170,3 +170,5 @@ observability:
   targetDownFor: 5m
   highErrorRateFor: 10m
   highErrorRateThreshold: 0.05
+  highLatencyFor: 10m
+  highLatencyThresholdMilliseconds: 1000
