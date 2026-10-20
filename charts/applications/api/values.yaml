@@ -1,0 +1,65 @@
+nameOverride: ""
+
+image:
+  repository: nexus/api
+
+replicaCount: 2
+serviceAccount:
+  create: true
+  name: api
+  automountServiceAccountToken: false
+command: []
+port: 8080
+env: []
+nodeSelector:
+  role: general
+tolerations: []
+resources:
+  requests:
+    cpu: 100m
+    memory: 64Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+service:
+  enabled: true
+  type: ClusterIP
+  port: 80
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  cpuUtilization: 70
+  memoryUtilization: 80
+disruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+config:
+  awsRegion: ""
+  database:
+    host: ""
+    port: "5432"
+    name: nexus
+    user: nexus
+    sslMode: require
+    secretName: nexus-database
+    passwordKey: password
+  valkey:
+    host: ""
+    port: "6379"
+    username: ""
+    cacheName: ""
+    iamAuthentication: true
+    tls: true
+    cacheTTL: 30s
+  sqs:
+    queueURL: ""
+
+externalSecret:
+  enabled: false
+  storeName: aws-secretsmanager
+  refreshInterval: 1h
+  remoteSecretKey: ""
+  passwordProperty: password
+

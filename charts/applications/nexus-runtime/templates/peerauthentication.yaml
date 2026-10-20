@@ -1,0 +1,11 @@
+{{- if .Values.mesh.enabled }}
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: nexus
+  labels:
+    {{- include "nexus-runtime.labels" . | nindent 4 }}
+spec:
+  mtls:
+    mode: {{ .Values.mesh.mtlsMode }}
+{{- end }}

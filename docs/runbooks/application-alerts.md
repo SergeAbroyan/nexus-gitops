@@ -47,7 +47,7 @@ More than the configured proportion of requests returns an HTTP 5xx response.
    kubectl get pods -n nexus
    kubectl logs -n nexus deployment/nexus-api --all-containers --since=15m
    kubectl rollout history deployment/nexus-api -n nexus
-   kubectl get application -n argocd nexus-dev -o yaml
+   kubectl get application -n argocd nexus-api -o yaml
    ```
 
 4. Check `Nexus AWS Overview` for simultaneous RDS, Valkey, or SQS pressure.

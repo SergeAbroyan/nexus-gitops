@@ -1,0 +1,10 @@
+apiVersion: v2
+name: nexus-cloudbeaver
+description: Internal database administration UI for Nexus
+type: application
+version: 0.2.0
+appVersion: "26.2.1"
+dependencies:
+  - name: nexus-base
+    version: 0.1.0
+    repository: file://../../base

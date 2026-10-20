@@ -7,16 +7,28 @@ workloads; Argo CD will continuously reconcile this repository into EKS.
 ## Repository structure
 
 ```text
-charts/applications/nexus/      Frontend, API, and worker Helm chart
+charts/base/                    Shared Helm library for standard resources
+charts/applications/frontend/   Nexus web frontend
+charts/applications/api/        Nexus HTTP API and database secret integration
+charts/applications/worker/     Nexus asynchronous queue worker
+charts/applications/nexus-runtime/ Shared namespace, mesh, alerts, and dashboards
 charts/platform/karpenter/      Node provisioning configuration
 charts/platform/storage/        Encrypted EBS StorageClass
 charts/platform/ingress/        Internal Istio gateway routing
-charts/tools/cloudbeaver/       Internal database administration UI
-environments/<environment>/     Environment-specific Nexus values
+charts/platform/cloudbeaver/    Internal database administration UI
+environments/global-values.yaml Settings shared by every environment
+environments/<environment>/     One state file per deployable Nexus component
 ```
 
 Every deployable project-owned Helm chart lives below `charts/`. This repository
 does not contain Argo CD `Application` or `ApplicationSet` resources.
+
+`charts/base` is a Helm library chart, not a deployable application. It owns the
+reusable templates for restricted namespaces, standard stateless workloads, and
+persistent volume claims. Application charts keep only their domain-specific
+configuration and call the library through a local, versioned dependency. The
+Karpenter and storage charts remain independent because their custom resources
+do not share the normal Deployment/Service lifecycle.
 
 ## GitOps bootstrap
 
@@ -70,12 +82,13 @@ promoting the configuration to production.
 
 ## Nexus application delivery
 
-The Nexus ApplicationSet generates one Argo CD application for the environment
-being created by Terraform. Argo CD combines two sources of values:
+The Nexus ApplicationSet generates four Argo CD applications for the environment:
+runtime, frontend, API, and worker. Argo CD combines three value layers:
 
-1. `environments/<environment>/values.yaml` contains versioned operational
-   choices such as replica counts and scaling limits.
-2. Terraform injects non-secret AWS outputs such as service endpoints, the ECR
+1. Each chart's `values.yaml` defines service-specific defaults and its public interface.
+2. `environments/global-values.yaml` and the component file under
+   `environments/<environment>/` contain versioned deployment state.
+3. Terraform injects non-secret AWS outputs such as service endpoints, the ECR
    registry, and the RDS Secrets Manager ARN.
 
 External Secrets reads the password from that ARN inside EKS. The password is
@@ -85,29 +98,29 @@ never placed in Terraform state, Argo CD parameters, or Git.
 
 The external-platform ApplicationSet installs Istio base, Istio CNI, and Istiod
 at the same pinned version. Istio CNI removes the need for privileged init
-containers in application pods. The Nexus chart owns its namespace labels,
+containers in application pods. The `nexus-runtime` chart owns namespace labels,
 enables automatic sidecar injection, and enforces the Restricted Pod Security
 Standard.
 
-The Nexus chart creates a namespace-wide `PeerAuthentication` policy in
+The `nexus-runtime` chart creates a namespace-wide `PeerAuthentication` policy in
 `STRICT` mode, so mesh traffic must use mutual TLS. External AWS service traffic
 remains allowed until explicit ServiceEntry policies are introduced.
 
 ## Application observability
 
-The Nexus chart creates a PodMonitor for the frontend, API, and worker. Istio
+The `nexus-runtime` chart creates a PodMonitor for the frontend, API, and worker. Istio
 merges each application's `/metrics` endpoint into its monitoring endpoint, so
 Prometheus scrapes port `15020` without weakening the namespace's strict mTLS
 policy. The worker therefore remains without a Kubernetes Service.
 
-The chart also creates Prometheus alerts for an unavailable scrape target, an
+The runtime chart also creates Prometheus alerts for an unavailable scrape target, an
 elevated Istio 5xx response rate, and sustained high 95th-percentile request
 latency. The alert durations and thresholds are chart values, so each
 environment can tune them without modifying the templates. Terraform configures
 the Prometheus Operator selectors to discover PodMonitor and PrometheusRule
 resources in the Nexus namespace.
 
-The chart supplies every service with the internal OpenTelemetry trace-gateway
+The global values file supplies every service with the internal OpenTelemetry trace-gateway
 endpoint and the current deployment environment. Application spans are sent to
 the gateway, then batched and forwarded to Tempo. The endpoint is a shared chart
 setting because all Nexus services use the same in-cluster collector; individual
@@ -134,7 +147,7 @@ access; Grafana and CloudBeaver remain unexposed.
 
 ## CloudBeaver
 
-The `charts/tools/cloudbeaver` chart provides an internal database administration
+The `charts/platform/cloudbeaver` chart provides an internal database administration
 UI for development and operations. It uses a persistent workspace, runs as the
 non-root UID published by CloudBeaver, and is exposed only by a `ClusterIP`
 Service. Database connections and external ingress are intentionally configured
@@ -144,9 +157,10 @@ Its workspace uses the `nexus-gp3` StorageClass from `charts/platform/storage`. 
 are encrypted with the infrastructure-managed EBS KMS key, expand in place, and
 are retained if the claim is deleted.
 
-## Application chart
+## Application charts
 
-The `charts/applications/nexus` chart deploys the frontend, API, and worker with consistent:
+The frontend, API, and worker are separate deployable charts. They call the same
+base workload template, so all three retain consistent:
 
 - non-root and read-only container security
 - startup, liveness, and readiness probes
@@ -159,10 +173,10 @@ The `charts/applications/nexus` chart deploys the frontend, API, and worker with
 Validate or render the chart locally:
 
 ```bash
+make dependencies
 make lint
 make template
 make lint-all
-make template-all
 ```
 
 ## Continuous validation
@@ -183,24 +197,24 @@ make template ENVIRONMENT=staging
 make template ENVIRONMENT=production
 ```
 
-Shared defaults remain in `charts/applications/nexus/values.yaml`. The files under
-`environments/` contain only values that differ between DEV, STAGING, and
-PRODUCTION. This avoids copying the whole configuration and prevents drift.
+Cross-service settings live in `environments/global-values.yaml`. Each environment
+then has a small values file for runtime, frontend, API, and worker. Chart values
+contain reusable service defaults only; environment files are the desired
+deployment state.
 
-Image tags must be immutable. DEV explicitly starts at `0.1.0`; after all three
-service images are published successfully, the application pipeline updates
-the DEV value to their shared commit SHA. This makes frontend, API, and worker
-one atomic release and avoids mutable tags such as `latest` or `dev`. Staging
-and production advance only through deliberate GitOps promotion of an already
-tested SHA.
+Image tags must be immutable. Each component environment file explicitly starts
+at `0.1.0`. The application pipeline updates the corresponding DEV file to a
+commit SHA after publishing that service image. Staging and production advance
+only through deliberate GitOps promotion of an already tested SHA.
 
-The environment files intentionally leave AWS service endpoints in the shared
-defaults until those environments exist. External Secrets integration will
-supply credentials without putting them in Git.
+Environment files intentionally omit infrastructure-generated AWS endpoints.
+Terraform injects the current RDS, Valkey, SQS, and ECR outputs into each Argo
+CD application. External Secrets supplies credentials without putting them in
+Git.
 
 ## Database credentials
 
-The application chart synchronizes the RDS-managed password from AWS Secrets
+The API chart synchronizes the RDS-managed password from AWS Secrets
 Manager. Terraform passes the environment's secret ARN through the Nexus
 ApplicationSet; the ARN is not hard-coded in an environment values file.
 

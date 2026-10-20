@@ -1,0 +1,23 @@
+{{- $name := default .Chart.Name .Values.nameOverride -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "nexus-base.labels" (dict "root" . "name" $name "partOf" "nexus" "component" "api") | nindent 4 }}
+data:
+  AWS_REGION: {{ .Values.config.awsRegion | quote }}
+  DB_HOST: {{ .Values.config.database.host | quote }}
+  DB_PORT: {{ .Values.config.database.port | quote }}
+  DB_NAME: {{ .Values.config.database.name | quote }}
+  DB_USER: {{ .Values.config.database.user | quote }}
+  DB_SSLMODE: {{ .Values.config.database.sslMode | quote }}
+  VALKEY_HOST: {{ .Values.config.valkey.host | quote }}
+  VALKEY_PORT: {{ .Values.config.valkey.port | quote }}
+  VALKEY_USERNAME: {{ .Values.config.valkey.username | quote }}
+  VALKEY_CACHE_NAME: {{ .Values.config.valkey.cacheName | quote }}
+  VALKEY_IAM_AUTH: {{ .Values.config.valkey.iamAuthentication | quote }}
+  VALKEY_TLS: {{ .Values.config.valkey.tls | quote }}
+  VALKEY_CACHE_TTL: {{ .Values.config.valkey.cacheTTL | quote }}
+  SQS_QUEUE_URL: {{ .Values.config.sqs.queueURL | quote }}
+

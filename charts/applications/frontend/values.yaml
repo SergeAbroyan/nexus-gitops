@@ -1,0 +1,38 @@
+nameOverride: ""
+
+image:
+  repository: nexus/frontend
+
+replicaCount: 2
+serviceAccount:
+  create: true
+  name: frontend
+  automountServiceAccountToken: false
+command: []
+port: 8080
+apiURL: ""
+env: []
+nodeSelector:
+  role: general
+tolerations: []
+resources:
+  requests:
+    cpu: 50m
+    memory: 32Mi
+  limits:
+    cpu: 200m
+    memory: 64Mi
+service:
+  enabled: true
+  type: ClusterIP
+  port: 80
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  cpuUtilization: 70
+  memoryUtilization: 80
+disruptionBudget:
+  enabled: true
+  minAvailable: 1
+

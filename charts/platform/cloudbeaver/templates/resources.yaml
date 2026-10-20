@@ -1,0 +1,48 @@
+{{- $name := "cloudbeaver" -}}
+{{- $partOf := "nexus" -}}
+{{- $component := "database-admin" -}}
+{{ include "nexus-base.namespace" (dict "root" . "meshEnabled" false) }}
+{{ include "nexus-base.persistentVolumeClaim" (dict
+  "root" .
+  "name" (printf "%s-workspace" $name)
+  "labelName" $name
+  "partOf" $partOf
+  "component" $component
+  "claim" .Values.persistence
+) }}
+{{- $workload := dict
+  "replicaCount" .Values.replicaCount
+  "revisionHistoryLimit" 3
+  "strategy" (dict "type" "Recreate")
+  "serviceAccount" .Values.serviceAccount
+  "image" (printf "%s:%s" .Values.image.repository .Values.image.tag)
+  "imagePullPolicy" .Values.image.pullPolicy
+  "containerName" $name
+  "port" .Values.service.port
+  "probes" .Values.probes
+  "resources" .Values.resources
+  "podSecurityContext" .Values.podSecurityContext
+  "containerSecurityContext" .Values.containerSecurityContext
+  "terminationGracePeriodSeconds" .Values.terminationGracePeriodSeconds
+  "nodeSelector" .Values.nodeSelector
+  "podLabels" (dict "app.kubernetes.io/managed-by" .Release.Service)
+  "service" .Values.service
+  "autoscaling" (dict "enabled" false)
+  "disruptionBudget" (dict "enabled" false)
+  "topologySpread" (dict "enabled" false)
+  "volumeMounts" (list
+    (dict "name" "workspace" "mountPath" "/opt/cloudbeaver/workspace")
+    (dict "name" "temporary-files" "mountPath" "/tmp")
+  )
+  "volumes" (list
+    (dict "name" "workspace" "persistentVolumeClaim" (dict "claimName" (printf "%s-workspace" $name)))
+    (dict "name" "temporary-files" "emptyDir" (dict))
+  )
+-}}
+{{ include "nexus-base.workload" (dict
+  "root" .
+  "name" $name
+  "partOf" $partOf
+  "component" $component
+  "workload" $workload
+) }}

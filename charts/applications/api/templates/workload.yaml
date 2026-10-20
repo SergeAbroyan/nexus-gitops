@@ -1,0 +1,41 @@
+{{- $name := default .Chart.Name .Values.nameOverride -}}
+{{- $image := printf "%s:%s" .Values.image.repository .Values.image.tag -}}
+{{- if .Values.image.registry }}
+{{- $image = printf "%s/%s" .Values.image.registry $image -}}
+{{- end }}
+{{- $env := list -}}
+{{- if .Values.observability.tracing.enabled }}
+{{- $env = append $env (dict "name" "OTEL_EXPORTER_OTLP_ENDPOINT" "value" (required "observability.tracing.endpoint is required" .Values.observability.tracing.endpoint)) }}
+{{- $env = append $env (dict "name" "OTEL_TRACES_SAMPLER_ARG" "value" (required "observability.tracing.sampleRatio is required" .Values.observability.tracing.sampleRatio)) }}
+{{- $env = append $env (dict "name" "OTEL_RESOURCE_ATTRIBUTES" "value" (printf "deployment.environment.name=%s" (required "environment is required" .Values.environment))) }}
+{{- end }}
+{{- $env = append $env (dict "name" "DB_PASSWORD" "valueFrom" (dict "secretKeyRef" (dict "name" .Values.config.database.secretName "key" .Values.config.database.passwordKey))) }}
+{{- $env = concat $env (default (list) .Values.env) }}
+{{- $autoscaling := deepCopy .Values.autoscaling }}
+{{- $_ := set $autoscaling "behavior" .Values.autoscalingBehavior }}
+{{- $workload := dict
+  "replicaCount" .Values.replicaCount
+  "revisionHistoryLimit" 3
+  "strategy" .Values.deploymentStrategy
+  "serviceAccount" .Values.serviceAccount
+  "image" $image
+  "imagePullPolicy" .Values.image.pullPolicy
+  "command" .Values.command
+  "port" .Values.port
+  "env" $env
+  "envFrom" (list (dict "configMapRef" (dict "name" $name)))
+  "probes" .Values.probes
+  "resources" .Values.resources
+  "podSecurityContext" .Values.podSecurityContext
+  "containerSecurityContext" .Values.containerSecurityContext
+  "terminationGracePeriodSeconds" .Values.terminationGracePeriodSeconds
+  "nodeSelector" .Values.nodeSelector
+  "tolerations" .Values.tolerations
+  "topologySpread" .Values.topologySpread
+  "podAnnotations" (dict "prometheus.io/scrape" (.Values.observability.enabled | toString) "prometheus.io/path" "/metrics" "prometheus.io/port" (.Values.port | toString))
+  "service" .Values.service
+  "autoscaling" $autoscaling
+  "disruptionBudget" .Values.disruptionBudget
+-}}
+{{ include "nexus-base.workload" (dict "root" . "name" $name "partOf" "nexus" "component" "api" "selectorInstance" "nexus" "workload" $workload) }}
+

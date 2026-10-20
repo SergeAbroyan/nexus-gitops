@@ -1,0 +1,6 @@
+apiVersion: v2
+name: nexus-base
+description: Reusable Kubernetes resource templates for Nexus-owned Helm charts
+type: library
+version: 0.1.0
+

@@ -1,45 +1,59 @@
-APPLICATION_CHART := charts/applications/nexus
+BASE_CHART := charts/base
+RUNTIME_CHART := charts/applications/nexus-runtime
+FRONTEND_CHART := charts/applications/frontend
+API_CHART := charts/applications/api
+WORKER_CHART := charts/applications/worker
 KARPENTER_CHART := charts/platform/karpenter
 KARPENTER_TEST_VALUES := charts/platform/karpenter/test-values.yaml
 STORAGE_CHART := charts/platform/storage
 STORAGE_TEST_VALUES := charts/platform/storage/test-values.yaml
 INGRESS_CHART := charts/platform/ingress
-CLOUDBEAVER_CHART := charts/tools/cloudbeaver
+CLOUDBEAVER_CHART := charts/platform/cloudbeaver
+DEPENDENT_CHARTS := $(RUNTIME_CHART) $(FRONTEND_CHART) $(API_CHART) $(WORKER_CHART) $(INGRESS_CHART) $(CLOUDBEAVER_CHART)
+
 ENVIRONMENT ?= dev
-ENVIRONMENT_VALUES := environments/$(ENVIRONMENT)/values.yaml
+GLOBAL_VALUES := environments/global-values.yaml
+ENVIRONMENT_DIRECTORY := environments/$(ENVIRONMENT)
 RENDER_DIRECTORY ?= .rendered
 
-.PHONY: lint lint-all template template-all render-all
+.PHONY: dependencies lint lint-all template render-all
 
-lint:
-	helm lint $(APPLICATION_CHART) --values $(ENVIRONMENT_VALUES)
+dependencies:
+	@set -e; for chart in $(DEPENDENT_CHARTS); do helm dependency build --skip-refresh "$$chart"; done
 
-lint-all:
-	helm lint $(APPLICATION_CHART) --values environments/dev/values.yaml
-	helm lint $(APPLICATION_CHART) --values environments/staging/values.yaml
-	helm lint $(APPLICATION_CHART) --values environments/production/values.yaml
+lint: dependencies
+	helm lint $(RUNTIME_CHART) --values $(GLOBAL_VALUES) --values $(ENVIRONMENT_DIRECTORY)/runtime-values.yaml
+	helm lint $(FRONTEND_CHART) --values $(GLOBAL_VALUES) --values $(ENVIRONMENT_DIRECTORY)/frontend-values.yaml
+	helm lint $(API_CHART) --values $(GLOBAL_VALUES) --values $(ENVIRONMENT_DIRECTORY)/api-values.yaml
+	helm lint $(WORKER_CHART) --values $(GLOBAL_VALUES) --values $(ENVIRONMENT_DIRECTORY)/worker-values.yaml
+
+lint-all: dependencies
+	helm lint $(BASE_CHART)
+	@set -e; for environment in dev staging production; do \
+		helm lint $(RUNTIME_CHART) --values $(GLOBAL_VALUES) --values environments/$$environment/runtime-values.yaml; \
+		helm lint $(FRONTEND_CHART) --values $(GLOBAL_VALUES) --values environments/$$environment/frontend-values.yaml; \
+		helm lint $(API_CHART) --values $(GLOBAL_VALUES) --values environments/$$environment/api-values.yaml; \
+		helm lint $(WORKER_CHART) --values $(GLOBAL_VALUES) --values environments/$$environment/worker-values.yaml; \
+	done
 	helm lint $(KARPENTER_CHART) --values $(KARPENTER_TEST_VALUES)
 	helm lint $(STORAGE_CHART) --values $(STORAGE_TEST_VALUES)
 	helm lint $(INGRESS_CHART)
 	helm lint $(CLOUDBEAVER_CHART)
 
-template:
-	helm template nexus $(APPLICATION_CHART) --namespace nexus --values $(ENVIRONMENT_VALUES)
+template: dependencies
+	helm template nexus-runtime $(RUNTIME_CHART) --namespace nexus --values $(GLOBAL_VALUES) --values $(ENVIRONMENT_DIRECTORY)/runtime-values.yaml
+	helm template nexus-frontend $(FRONTEND_CHART) --namespace nexus --values $(GLOBAL_VALUES) --values $(ENVIRONMENT_DIRECTORY)/frontend-values.yaml
+	helm template nexus-api $(API_CHART) --namespace nexus --values $(GLOBAL_VALUES) --values $(ENVIRONMENT_DIRECTORY)/api-values.yaml
+	helm template nexus-worker $(WORKER_CHART) --namespace nexus --values $(GLOBAL_VALUES) --values $(ENVIRONMENT_DIRECTORY)/worker-values.yaml
 
-template-all:
-	helm template nexus-dev $(APPLICATION_CHART) --namespace nexus --values environments/dev/values.yaml > /dev/null
-	helm template nexus-staging $(APPLICATION_CHART) --namespace nexus --values environments/staging/values.yaml > /dev/null
-	helm template nexus-production $(APPLICATION_CHART) --namespace nexus --values environments/production/values.yaml > /dev/null
-	helm template karpenter-config $(KARPENTER_CHART) --namespace kube-system --values $(KARPENTER_TEST_VALUES) > /dev/null
-	helm template storage-config $(STORAGE_CHART) --namespace kube-system --values $(STORAGE_TEST_VALUES) > /dev/null
-	helm template ingress-config $(INGRESS_CHART) --namespace istio-ingress > /dev/null
-	helm template cloudbeaver $(CLOUDBEAVER_CHART) --namespace cloudbeaver > /dev/null
-
-render-all:
+render-all: dependencies
 	mkdir -p $(RENDER_DIRECTORY)
-	helm template nexus-dev $(APPLICATION_CHART) --namespace nexus --values environments/dev/values.yaml > $(RENDER_DIRECTORY)/nexus-dev.yaml
-	helm template nexus-staging $(APPLICATION_CHART) --namespace nexus --values environments/staging/values.yaml > $(RENDER_DIRECTORY)/nexus-staging.yaml
-	helm template nexus-production $(APPLICATION_CHART) --namespace nexus --values environments/production/values.yaml > $(RENDER_DIRECTORY)/nexus-production.yaml
+	@set -e; for environment in dev staging production; do \
+		helm template nexus-runtime $(RUNTIME_CHART) --namespace nexus --values $(GLOBAL_VALUES) --values environments/$$environment/runtime-values.yaml > $(RENDER_DIRECTORY)/nexus-runtime-$$environment.yaml; \
+		helm template nexus-frontend $(FRONTEND_CHART) --namespace nexus --values $(GLOBAL_VALUES) --values environments/$$environment/frontend-values.yaml > $(RENDER_DIRECTORY)/nexus-frontend-$$environment.yaml; \
+		helm template nexus-api $(API_CHART) --namespace nexus --values $(GLOBAL_VALUES) --values environments/$$environment/api-values.yaml > $(RENDER_DIRECTORY)/nexus-api-$$environment.yaml; \
+		helm template nexus-worker $(WORKER_CHART) --namespace nexus --values $(GLOBAL_VALUES) --values environments/$$environment/worker-values.yaml > $(RENDER_DIRECTORY)/nexus-worker-$$environment.yaml; \
+	done
 	helm template karpenter-config $(KARPENTER_CHART) --namespace kube-system --values $(KARPENTER_TEST_VALUES) > $(RENDER_DIRECTORY)/karpenter.yaml
 	helm template storage-config $(STORAGE_CHART) --namespace kube-system --values $(STORAGE_TEST_VALUES) > $(RENDER_DIRECTORY)/storage.yaml
 	helm template ingress-config $(INGRESS_CHART) --namespace istio-ingress > $(RENDER_DIRECTORY)/ingress.yaml

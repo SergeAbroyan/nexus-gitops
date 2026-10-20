@@ -1,0 +1,17 @@
+environment: local
+
+mesh:
+  enabled: true
+  mtlsMode: STRICT
+
+observability:
+  enabled: true
+  dashboard:
+    enabled: true
+  scrapeInterval: 30s
+  targetDownFor: 5m
+  highErrorRateFor: 10m
+  highErrorRateThreshold: 0.05
+  highLatencyFor: 10m
+  highLatencyThresholdMilliseconds: 1000
+

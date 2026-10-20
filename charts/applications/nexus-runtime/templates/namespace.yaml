@@ -1,0 +1,1 @@
+{{- include "nexus-base.namespace" (dict "root" . "meshEnabled" .Values.mesh.enabled) }}

@@ -1,0 +1,63 @@
+image:
+  repository: dbeaver/cloudbeaver
+  tag: 26.2.1
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+serviceAccount:
+  create: true
+  name: cloudbeaver
+  automountServiceAccountToken: false
+
+service:
+  enabled: true
+  type: ClusterIP
+  port: 8978
+
+persistence:
+  storageClassName: nexus-gp3
+  size: 5Gi
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 2Gi
+
+nodeSelector:
+  role: general
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 8978
+  runAsGroup: 8978
+  fsGroup: 8978
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+probes:
+  startup:
+    tcpSocket:
+      port: http
+    failureThreshold: 30
+    periodSeconds: 10
+  readiness:
+    httpGet:
+      path: /
+      port: http
+    periodSeconds: 10
+  liveness:
+    tcpSocket:
+      port: http
+    periodSeconds: 20
+
+terminationGracePeriodSeconds: 30

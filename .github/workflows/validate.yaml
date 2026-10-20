@@ -29,9 +29,6 @@ jobs:
       - name: Lint every chart
         run: make lint-all
 
-      - name: Render every environment and platform chart
-        run: make template-all
-
       - name: Render manifests for validation
         run: make render-all
 
