@@ -11,7 +11,7 @@ spec:
     - name: nexus.availability
       rules:
         - alert: NexusTargetDown
-          expr: up{namespace={{ .Release.Namespace | quote }}, pod=~"nexus-(frontend|api|worker)-.*"} == 0
+          expr: up{namespace={{ .Release.Namespace | quote }}, pod=~"nexus-(api|worker)-.*"} == 0
           for: {{ .Values.observability.targetDownFor }}
           labels:
             severity: critical

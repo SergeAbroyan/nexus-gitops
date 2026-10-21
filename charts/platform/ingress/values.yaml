@@ -7,6 +7,5 @@ gateway:
 
 nexus:
   namespace: nexus
-  frontendService: nexus-frontend
   apiService: nexus-api
   servicePort: 80

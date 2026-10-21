@@ -8,9 +8,8 @@ workloads; Argo CD will continuously reconcile this repository into EKS.
 
 ```text
 charts/base/                    Shared Helm library for standard resources
-charts/applications/frontend/   Nexus web frontend
-charts/applications/api/        Nexus HTTP API and database secret integration
-charts/applications/worker/     Nexus asynchronous queue worker
+charts/applications/api/        Nexus Go web application and API
+charts/applications/worker/     Nexus Java asynchronous queue worker
 charts/applications/nexus-runtime/ Shared namespace, mesh, alerts, and dashboards
 charts/platform/karpenter/      Node provisioning configuration
 charts/platform/storage/        Encrypted EBS StorageClass
@@ -71,7 +70,7 @@ The `charts/platform/karpenter` chart defines one hardened EC2 node class and th
 capacity pools:
 
 - `system` uses On-Demand capacity for platform controllers.
-- `general` uses On-Demand capacity for the frontend and API.
+- `general` uses On-Demand capacity for the Go API.
 - `spot` is tainted and accepts only explicitly tolerant workloads such as the
   asynchronous worker.
 
@@ -82,8 +81,8 @@ promoting the configuration to production.
 
 ## Nexus application delivery
 
-The Nexus ApplicationSet generates four Argo CD applications for the environment:
-runtime, frontend, API, and worker. Argo CD combines three value layers:
+The Nexus ApplicationSet generates three Argo CD applications for the environment:
+runtime, Go API and Java worker. Argo CD combines three value layers:
 
 1. Each chart's `values.yaml` defines service-specific defaults and its public interface.
 2. `environments/global-values.yaml` and the component file under
@@ -108,7 +107,7 @@ remains allowed until explicit ServiceEntry policies are introduced.
 
 ## Application observability
 
-The `nexus-runtime` chart creates a PodMonitor for the frontend, API, and worker. Istio
+The `nexus-runtime` chart creates a PodMonitor for the API and worker. Istio
 merges each application's `/metrics` endpoint into its monitoring endpoint, so
 Prometheus scrapes port `15020` without weakening the namespace's strict mTLS
 policy. The worker therefore remains without a Kubernetes Service.
@@ -120,12 +119,11 @@ environment can tune them without modifying the templates. Terraform configures
 the Prometheus Operator selectors to discover PodMonitor and PrometheusRule
 resources in the Nexus namespace.
 
-The global values file supplies every service with the internal OpenTelemetry trace-gateway
-endpoint and the current deployment environment. Application spans are sent to
-the gateway, then batched and forwarded to Tempo. The endpoint is a shared chart
-setting because all Nexus services use the same in-cluster collector; individual
-service `env` lists remain available for service-specific overrides. The shared
-1% sampling ratio also covers root spans created by asynchronous workers.
+The global values file supplies the Go API with the internal OpenTelemetry
+trace-gateway endpoint and the current deployment environment. API spans are
+sent to the gateway, then batched and forwarded to Tempo. The Java worker
+exposes Prometheus metrics through Spring Boot Actuator; distributed tracing can
+be added later when the example needs cross-language trace propagation.
 
 The version-controlled `Nexus Overview` Grafana dashboard shows target
 availability, application request rate, CPU usage, memory working set, Istio
@@ -138,8 +136,8 @@ Every Prometheus application alert includes a `runbook_url` annotation, while
 the runbook index maps AWS CloudWatch alarm names to their response procedure.
 
 The `charts/platform/ingress` chart owns the shared Istio `Gateway` and Nexus
-route. `/api` traffic goes to the API service and all other paths go to the
-frontend. Port 80 redirects to HTTPS. The internal AWS NLB terminates TLS with
+route. All application traffic goes to the Go API, which serves both the web
+page and the REST endpoints. Port 80 redirects to HTTPS. The internal AWS NLB terminates TLS with
 the ACM certificate supplied by Terraform and forwards decrypted HTTP to the
 gateway's port 8443. ExternalDNS creates the hostname from the Service
 annotation. Because the NLB remains internal, clients still need VPC network
@@ -159,8 +157,8 @@ are retained if the claim is deleted.
 
 ## Application charts
 
-The frontend, API, and worker are separate deployable charts. They call the same
-base workload template, so all three retain consistent:
+The Go API and Java worker are separate deployable charts. They call the same
+base workload template, so both retain consistent:
 
 - non-root and read-only container security
 - startup, liveness, and readiness probes
@@ -198,7 +196,7 @@ make template ENVIRONMENT=production
 ```
 
 Cross-service settings live in `environments/global-values.yaml`. Each environment
-then has a small values file for runtime, frontend, API, and worker. Chart values
+then has a small values file for runtime, API and worker. Chart values
 contain reusable service defaults only; environment files are the desired
 deployment state.
 

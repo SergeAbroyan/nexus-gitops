@@ -1,6 +1,0 @@
-dependencies:
-- name: nexus-base
-  repository: file://../../base
-  version: 0.1.0
-digest: sha256:09d09e15a9fc8390d3cb5f856f52e92114a2c306bf0d1aeca01f1c42e9ef1b17
-generated: "2026-10-20T13:30:33.400523+04:00"

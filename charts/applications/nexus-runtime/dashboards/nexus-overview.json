@@ -60,7 +60,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(up{namespace=\"{{ .Release.Namespace }}\", pod=~\"nexus-(frontend|api|worker)-.*\"})",
+          "expr": "sum(up{namespace=\"{{ .Release.Namespace }}\", pod=~\"nexus-(api|worker)-.*\"})",
           "legendFormat": "available targets",
           "range": true,
           "refId": "A"

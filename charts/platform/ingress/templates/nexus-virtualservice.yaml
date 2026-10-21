@@ -20,18 +20,9 @@ spec:
         status: 404
         body:
           string: Not found
-    - name: api
-      match:
-        - uri:
-            prefix: /api
+    - name: application
       route:
         - destination:
             host: {{ printf "%s.%s.svc.cluster.local" .Values.nexus.apiService .Values.nexus.namespace }}
-            port:
-              number: {{ .Values.nexus.servicePort }}
-    - name: frontend
-      route:
-        - destination:
-            host: {{ printf "%s.%s.svc.cluster.local" .Values.nexus.frontendService .Values.nexus.namespace }}
             port:
               number: {{ .Values.nexus.servicePort }}

@@ -1,9 +1,0 @@
-environment: production
-image:
-  tag: "0.1.0"
-autoscaling:
-  minReplicas: 3
-  maxReplicas: 10
-disruptionBudget:
-  minAvailable: 2
-

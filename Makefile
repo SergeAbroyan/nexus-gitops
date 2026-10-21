@@ -1,6 +1,5 @@
 BASE_CHART := charts/base
 RUNTIME_CHART := charts/applications/nexus-runtime
-FRONTEND_CHART := charts/applications/frontend
 API_CHART := charts/applications/api
 WORKER_CHART := charts/applications/worker
 KARPENTER_CHART := charts/platform/karpenter
@@ -9,7 +8,7 @@ STORAGE_CHART := charts/platform/storage
 STORAGE_TEST_VALUES := charts/platform/storage/test-values.yaml
 INGRESS_CHART := charts/platform/ingress
 CLOUDBEAVER_CHART := charts/platform/cloudbeaver
-DEPENDENT_CHARTS := $(RUNTIME_CHART) $(FRONTEND_CHART) $(API_CHART) $(WORKER_CHART) $(INGRESS_CHART) $(CLOUDBEAVER_CHART)
+DEPENDENT_CHARTS := $(RUNTIME_CHART) $(API_CHART) $(WORKER_CHART) $(INGRESS_CHART) $(CLOUDBEAVER_CHART)
 
 ENVIRONMENT ?= dev
 GLOBAL_VALUES := environments/global-values.yaml
@@ -23,7 +22,6 @@ dependencies:
 
 lint: dependencies
 	helm lint $(RUNTIME_CHART) --values $(GLOBAL_VALUES) --values $(ENVIRONMENT_DIRECTORY)/runtime-values.yaml
-	helm lint $(FRONTEND_CHART) --values $(GLOBAL_VALUES) --values $(ENVIRONMENT_DIRECTORY)/frontend-values.yaml
 	helm lint $(API_CHART) --values $(GLOBAL_VALUES) --values $(ENVIRONMENT_DIRECTORY)/api-values.yaml
 	helm lint $(WORKER_CHART) --values $(GLOBAL_VALUES) --values $(ENVIRONMENT_DIRECTORY)/worker-values.yaml
 
@@ -31,7 +29,6 @@ lint-all: dependencies
 	helm lint $(BASE_CHART)
 	@set -e; for environment in dev staging production; do \
 		helm lint $(RUNTIME_CHART) --values $(GLOBAL_VALUES) --values environments/$$environment/runtime-values.yaml; \
-		helm lint $(FRONTEND_CHART) --values $(GLOBAL_VALUES) --values environments/$$environment/frontend-values.yaml; \
 		helm lint $(API_CHART) --values $(GLOBAL_VALUES) --values environments/$$environment/api-values.yaml; \
 		helm lint $(WORKER_CHART) --values $(GLOBAL_VALUES) --values environments/$$environment/worker-values.yaml; \
 	done
@@ -42,7 +39,6 @@ lint-all: dependencies
 
 template: dependencies
 	helm template nexus-runtime $(RUNTIME_CHART) --namespace nexus --values $(GLOBAL_VALUES) --values $(ENVIRONMENT_DIRECTORY)/runtime-values.yaml
-	helm template nexus-frontend $(FRONTEND_CHART) --namespace nexus --values $(GLOBAL_VALUES) --values $(ENVIRONMENT_DIRECTORY)/frontend-values.yaml
 	helm template nexus-api $(API_CHART) --namespace nexus --values $(GLOBAL_VALUES) --values $(ENVIRONMENT_DIRECTORY)/api-values.yaml
 	helm template nexus-worker $(WORKER_CHART) --namespace nexus --values $(GLOBAL_VALUES) --values $(ENVIRONMENT_DIRECTORY)/worker-values.yaml
 
@@ -50,7 +46,6 @@ render-all: dependencies
 	mkdir -p $(RENDER_DIRECTORY)
 	@set -e; for environment in dev staging production; do \
 		helm template nexus-runtime $(RUNTIME_CHART) --namespace nexus --values $(GLOBAL_VALUES) --values environments/$$environment/runtime-values.yaml > $(RENDER_DIRECTORY)/nexus-runtime-$$environment.yaml; \
-		helm template nexus-frontend $(FRONTEND_CHART) --namespace nexus --values $(GLOBAL_VALUES) --values environments/$$environment/frontend-values.yaml > $(RENDER_DIRECTORY)/nexus-frontend-$$environment.yaml; \
 		helm template nexus-api $(API_CHART) --namespace nexus --values $(GLOBAL_VALUES) --values environments/$$environment/api-values.yaml > $(RENDER_DIRECTORY)/nexus-api-$$environment.yaml; \
 		helm template nexus-worker $(WORKER_CHART) --namespace nexus --values $(GLOBAL_VALUES) --values environments/$$environment/worker-values.yaml > $(RENDER_DIRECTORY)/nexus-worker-$$environment.yaml; \
 	done
