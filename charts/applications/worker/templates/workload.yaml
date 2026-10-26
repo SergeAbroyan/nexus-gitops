@@ -30,6 +30,8 @@
   "service" .Values.service
   "autoscaling" $autoscaling
   "disruptionBudget" .Values.disruptionBudget
+  "volumeMounts" (list (dict "name" "temporary-files" "mountPath" "/tmp"))
+  "volumes" (list (dict "name" "temporary-files" "emptyDir" (dict)))
 -}}
 {{ include "nexus-base.workload" (dict "root" . "name" $name "partOf" "nexus" "component" "worker" "selectorInstance" "nexus" "workload" $workload) }}
 

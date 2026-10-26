@@ -19,10 +19,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
 
       - name: Install Helm
-        uses: azure/setup-helm@v5.0.1
+        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310
         with:
           version: v3.22.0
 
@@ -33,7 +33,7 @@ jobs:
         run: make render-all
 
       - name: Validate Kubernetes schemas
-        uses: docker://ghcr.io/yannh/kubeconform:v0.7.0
+        uses: docker://ghcr.io/yannh/kubeconform:v0.7.0@sha256:85dbef6b4b312b99133decc9c6fc9495e9fc5f92293d4ff3b7e1b30f5611823c
         with:
           args: >-
             -kubernetes-version 1.35.0
@@ -43,7 +43,7 @@ jobs:
             .rendered
 
       - name: Install Kyverno CLI
-        uses: kyverno/action-install-cli@v0.2.0
+        uses: kyverno/action-install-cli@fcee92fca5c883169ef9927acf543e0b5fc58289
         with:
           release: v1.19.1
 

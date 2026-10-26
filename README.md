@@ -168,6 +168,10 @@ base workload template, so both retain consistent:
 - topology spreading across availability zones
 - service accounts compatible with EKS Pod Identity
 
+The Java worker also mounts an `emptyDir` volume at `/tmp`, because Spring
+Boot's embedded Tomcat needs a writable temporary directory while the root
+filesystem stays read-only.
+
 Validate or render the chart locally:
 
 ```bash
@@ -186,7 +190,9 @@ rendered built-in resources against Kubernetes 1.35 schemas, while Kyverno
 enforces the repository's workload security policies. Custom resources are
 still rendered and evaluated by policy, but schema validation skips them when
 their external CRD schema is unavailable. The workflow has only read access
-and never connects to AWS or the Kubernetes cluster.
+and never connects to AWS or the Kubernetes cluster. Actions are pinned to
+commit SHAs and the kubeconform image to a digest; Dependabot opens grouped
+weekly updates for the action pins.
 
 `ENVIRONMENT` selects the thin environment override and defaults to `dev`:
 
