@@ -1,3 +1,4 @@
 .DS_Store
 charts/**/charts/*.tgz
 .rendered/
+.ci/

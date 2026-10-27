@@ -1,0 +1,133 @@
+project: nexus-platform
+
+syncPolicy:
+  automated:
+    prune: true
+    selfHeal: true
+  syncOptions:
+    - CreateNamespace=true
+    - ServerSideApply=true
+  retry:
+    limit: 10
+    backoff:
+      duration: 30s
+      factor: 2
+      maxDuration: 5m
+
+storageClassName: nexus-gp3
+
+ingressGateway:
+  selector:
+    istio: ingress
+
+tracing:
+  port: 4317
+  samplingPercentage: 1
+
+addons:
+  istio-base:
+    wave: 1
+    namespace: istio-system
+    repoURL: https://blob.istio.io/istio-release/charts
+    chart: base
+    version: 1.30.5
+    ignoreDifferences:
+      - group: admissionregistration.k8s.io
+        kind: ValidatingWebhookConfiguration
+        name: istiod-default-validator
+        jsonPointers:
+          - /webhooks/0/failurePolicy
+  istio-cni:
+    wave: 2
+    namespace: istio-system
+    repoURL: https://blob.istio.io/istio-release/charts
+    chart: cni
+    version: 1.30.5
+  istiod:
+    wave: 2
+    namespace: istio-system
+    repoURL: https://blob.istio.io/istio-release/charts
+    chart: istiod
+    version: 1.30.5
+  istio-ingress:
+    wave: 4
+    namespace: istio-ingress
+    repoURL: https://blob.istio.io/istio-release/charts
+    chart: gateway
+    version: 1.30.5
+  karpenter-crd:
+    wave: 1
+    repoURL: public.ecr.aws/karpenter
+    chart: karpenter-crd
+    version: 1.14.1
+  karpenter:
+    wave: 2
+    repoURL: public.ecr.aws/karpenter
+    chart: karpenter
+    version: 1.14.1
+  aws-load-balancer-controller:
+    wave: 1
+    repoURL: https://aws.github.io/eks-charts
+    chart: aws-load-balancer-controller
+    version: 3.4.3
+  external-secrets:
+    wave: 2
+    repoURL: https://charts.external-secrets.io
+    chart: external-secrets
+    version: 2.11.0
+  metrics-server:
+    wave: 2
+    namespace: kube-system
+    repoURL: https://kubernetes-sigs.github.io/metrics-server
+    chart: metrics-server
+    version: 3.13.1
+  monitoring:
+    wave: 4
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    version: 92.1.0
+  loki:
+    wave: 4
+    namespace: monitoring
+    repoURL: ghcr.io/grafana-community/helm-charts
+    chart: loki
+    version: 18.13.1
+  tempo:
+    wave: 4
+    namespace: monitoring
+    repoURL: ghcr.io/grafana-community/helm-charts
+    chart: tempo
+    version: 3.0.0
+  otel-traces:
+    wave: 4
+    namespace: monitoring
+    repoURL: ghcr.io/open-telemetry/opentelemetry-helm-charts
+    chart: opentelemetry-collector
+    version: 0.172.0
+  otel-logs:
+    wave: 4
+    namespace: monitoring
+    repoURL: ghcr.io/open-telemetry/opentelemetry-helm-charts
+    chart: opentelemetry-collector
+    version: 0.172.0
+
+platform:
+  karpenter-config:
+    wave: 3
+    namespace: kube-system
+  storage-config:
+    wave: 3
+    namespace: kube-system
+  ingress-config:
+    wave: 4
+  cloudbeaver:
+    wave: 4
+    namespace: cloudbeaver
+
+applications:
+  runtime:
+    wave: 4
+  api:
+    wave: 4
+  worker:
+    wave: 4

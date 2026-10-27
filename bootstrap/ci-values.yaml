@@ -1,0 +1,56 @@
+cluster:
+  environment: dev
+  name: nexus-ci-use1
+  region: us-east-1
+  vpcId: vpc-0123456789abcdef0
+  gitops:
+    repository: https://github.com/SergeAbroyan/nexus-gitops.git
+    revision: main
+  hostname: nexus-ci.example.com
+  ingress:
+    port: 8443
+    targetGroupArn: arn:aws:elasticloadbalancing:us-east-1:111111111111:targetgroup/nexus-ci-use1-gateway/0123456789abcdef
+  ecrRegistry: 111111111111.dkr.ecr.us-east-1.amazonaws.com
+  ebsKmsKeyArn: arn:aws:kms:us-east-1:111111111111:key/00000000-0000-0000-0000-000000000000
+  karpenter:
+    nodeRoleName: nexus-ci-use1-karpenter-node
+    interruptionQueue: nexus-ci-use1-karpenter
+  serviceAccounts:
+    karpenter:
+      namespace: kube-system
+      name: karpenter
+    loadBalancerController:
+      namespace: kube-system
+      name: aws-load-balancer-controller
+    externalSecrets:
+      namespace: external-secrets
+      name: external-secrets
+    alertmanager:
+      namespace: monitoring
+      name: alertmanager
+    grafana:
+      namespace: monitoring
+      name: grafana
+    api:
+      namespace: nexus
+      name: api
+    worker:
+      namespace: nexus
+      name: worker
+  alertTopicArn: arn:aws:sns:us-east-1:111111111111:nexus-ci-use1-alerts
+  grafanaAdminSecretArn: arn:aws:secretsmanager:us-east-1:111111111111:secret:nexus-ci-use1/grafana/admin-password-AbCdEf
+  database:
+    host: nexus-ci-use1.cluster-abcdef.us-east-1.rds.amazonaws.com
+    port: 5432
+    name: nexus
+    username: nexus_admin
+    secretArn: arn:aws:secretsmanager:us-east-1:111111111111:secret:rds!db-00000000-0000-0000-0000-000000000000-AbCdEf
+  cache:
+    host: master.nexus-ci-use1-valkey.abcdef.use1.cache.amazonaws.com
+    port: 6379
+    username: nexus-ci-use1-api
+    replicationGroupId: nexus-ci-use1-valkey
+  queue:
+    url: https://sqs.us-east-1.amazonaws.com/111111111111/nexus-ci-use1-jobs
+    receiveWaitTimeSeconds: 20
+    visibilityTimeoutSeconds: 60

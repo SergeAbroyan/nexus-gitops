@@ -35,8 +35,3 @@ containerSecurityContext:
   readOnlyRootFilesystem: true
 
 terminationGracePeriodSeconds: 30
-
-observability:
-  tracing:
-    endpoint: http://otel-traces.monitoring.svc.cluster.local:4317
-    sampleRatio: "0.01"

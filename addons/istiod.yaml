@@ -1,0 +1,30 @@
+pilot:
+  cni:
+    enabled: true
+  nodeSelector:
+    role: system
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+meshConfig:
+  enablePrometheusMerge: true
+  enableTracing: true
+  defaultConfig:
+    holdApplicationUntilProxyStarts: true
+  outboundTrafficPolicy:
+    mode: ALLOW_ANY
+
+global:
+  proxy:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi

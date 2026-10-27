@@ -1,0 +1,16 @@
+replicas: 2
+
+serviceAccount:
+  create: true
+
+nodeSelector:
+  role: system
+
+controller:
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi

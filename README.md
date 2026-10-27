@@ -2,13 +2,27 @@
 
 This repository is the source of truth for everything that runs in the Nexus
 Kubernetes clusters. Each environment and region has its own EKS cluster, and
-the Argo CD instance in every cluster reconciles this repository. Terraform in
-`nexus-platform` installs Argo CD and its ApplicationSets and injects the
-values that come from AWS.
+the Argo CD instance in every cluster reconciles this repository.
+
+The split with `nexus-platform` follows the GitOps Bridge pattern: Terraform
+creates the AWS resources, installs Argo CD, and hands the cluster one root
+Application named `bootstrap` together with the facts it knows about AWS.
+Everything that runs inside Kubernetes, including every add-on, is defined
+here.
 
 ## Repository structure
 
 ```text
+bootstrap/                   Root chart: the AppProject and every Argo CD Application
+├── values.yaml              Catalog of Applications: chart, version, namespace, sync wave
+├── values.schema.json       Contract for the cluster facts that Terraform passes
+├── ci-values.yaml           Stand-in cluster facts for CI
+└── templates/
+    ├── _wiring.tpl          Values that come from cluster facts or connect one Application to another
+    ├── _helpers.tpl         Turns the catalog into Applications
+    ├── applications.yaml
+    └── project.yaml
+addons/                      Values for third-party charts, one file per Application
 charts/
 ├── base/                    Helm library: application, workload, namespace, and volume claim templates
 ├── applications/
@@ -17,64 +31,113 @@ charts/
 │   └── runtime/             Nexus namespace, mesh policy, alerts, and dashboards
 └── platform/
     ├── cloudbeaver/         Internal database administration UI
-    ├── ingress/             Istio gateway, route, and load balancer binding
-    ├── karpenter/           EC2 node class and node pools
-    └── storage/             Encrypted EBS StorageClass
+    ├── ingress-config/      Istio gateway, route, and load balancer binding
+    ├── karpenter-config/    EC2 node class and node pools
+    └── storage-config/      Encrypted EBS StorageClass
 environments/
-├── global-values.yaml       Defaults shared by every Nexus service
-├── dev/                     One values file for every chart deployed to DEV
-│   ├── api-values.yaml
-│   ├── worker-values.yaml
-│   ├── runtime-values.yaml
-│   ├── cloudbeaver-values.yaml
-│   ├── ingress-values.yaml
-│   ├── karpenter-values.yaml
-│   └── storage-values.yaml
-├── staging/                 The same seven files
-└── production/              The same seven files
+├── global-values.yaml       Conventions shared by the Nexus applications
+├── dev/                     Values that differ in DEV
+├── staging/                 Values that differ in staging
+└── production/              Values that differ in production
 docs/runbooks/               Alert response procedures
 policies/                    Kyverno workload security policies
 ```
 
-The repository contains no Argo CD `Application` or `ApplicationSet`
-resources; they live in the `platform` module of `nexus-platform`, so service
-registration happens in one place.
+## How Argo CD deploys a cluster
+
+Terraform creates two Argo CD objects in each cluster:
+
+- the `bootstrap` AppProject, which may only create Argo CD `Application` and
+  `AppProject` objects in the Argo CD namespace;
+- the `bootstrap` Application, which renders `bootstrap/` with the cluster
+  facts as Helm values.
+
+The `bootstrap` chart renders the `nexus-platform` AppProject and one
+Application for every entry in `bootstrap/values.yaml`. Each entry belongs to
+one of three groups, and the group decides where the chart and its values come
+from:
+
+| Group | Argo CD Application | Chart | Values files, in order |
+| --- | --- | --- | --- |
+| `addons` | `<key>` | `chart` and `version` from `repoURL` | `addons/<key>.yaml`, `environments/<env>/<key>-values.yaml` |
+| `platform` | `<key>` | `charts/platform/<key>` | `environments/<env>/<key>-values.yaml` |
+| `applications` | `nexus-<key>` | `charts/applications/<key>` | `environments/global-values.yaml`, `environments/<env>/<key>-values.yaml` |
+
+The values from `_wiring.tpl` come last and win. Environment files exist only
+where an environment differs, because every Application sets
+`ignoreMissingValueFiles`. CI fails when a values file under `addons/` or
+`environments/` is not loaded by any Application, so a misspelled file name
+cannot be silently ignored.
+
+### Sync waves
+
+The root Application creates the Applications in waves and waits for every
+Application in a wave to be healthy before it starts the next one. Terraform
+configures the Argo CD health check for `Application` objects that makes this
+wait possible.
+
+| Wave | Applications | Why |
+| --- | --- | --- |
+| 0 | `nexus-platform` AppProject | Every Application belongs to it |
+| 1 | `istio-base`, `karpenter-crd`, `aws-load-balancer-controller` | CRDs, and the webhook that admits every Service |
+| 2 | `istio-cni`, `istiod`, `karpenter`, `external-secrets`, `metrics-server` | Controllers that run on the managed `system` nodes |
+| 3 | `karpenter-config`, `storage-config` | Node pools and the storage class the workloads need |
+| 4 | Everything else | Pods start only after `istiod` can inject their sidecars |
+
+Failed syncs retry with backoff, so an Application that needs a CRD from
+another Application in the same wave, such as a `ServiceMonitor` that needs
+the monitoring stack, still converges.
+
+### Cluster facts
+
+Terraform passes these values under `cluster`, and `values.schema.json` rejects
+a missing, misspelled, or mistyped fact before anything renders:
+
+| Fact | Used for |
+| --- | --- |
+| `environment` | Environment values files, alert and trace labels |
+| `name`, `region`, `vpcId` | Karpenter, the AWS Load Balancer Controller, CloudWatch, Alertmanager, Secrets Manager |
+| `gitops` | Repository and revision of every Application |
+| `hostname`, `ingress` | Istio gateway port and host, load balancer target group |
+| `ecrRegistry` | Image registry of the Nexus applications |
+| `ebsKmsKeyArn`, `karpenter` | Node volume encryption, Karpenter node role and interruption queue |
+| `serviceAccounts` | Namespace and name of every service account that has an AWS identity |
+| `alertTopicArn`, `grafanaAdminSecretArn` | Alertmanager notifications, Grafana administrator password |
+| `database`, `cache`, `queue` | Connection settings of the API and worker |
+
+An Application whose pods use an AWS identity runs in the namespace that
+Terraform bound the identity to, so `_wiring.tpl` sets the namespace of
+`aws-load-balancer-controller`, `external-secrets`, `karpenter`,
+`karpenter-crd`, `monitoring`, and the Nexus applications from
+`serviceAccounts` instead of `values.yaml`.
 
 ## Where each value lives
 
-Every value has exactly one home, so nothing is set twice:
+Every value has exactly one home:
 
 | Location | Holds |
 | --- | --- |
-| chart `values.yaml` | Defaults that are the same in every environment: image repository, port, health checks, resources, placement, autoscaling targets |
-| `environments/global-values.yaml` | Conventions shared by the API and worker: security contexts, rollout strategy, zone spreading, autoscaling behavior, image pull policy |
-| `environments/<environment>/<chart>-values.yaml` | Values that differ per environment; every environment sets them |
-| Terraform in `nexus-platform` | Everything that comes from AWS or that Terraform names |
+| `bootstrap/values.yaml` | What runs: chart versions, namespaces, sync waves, the storage class name, the gateway selector, the trace port, and the trace sampling percentage |
+| `bootstrap/templates/_wiring.tpl` | Values derived from cluster facts, and values that point one Application at another |
+| `addons/<key>.yaml` | How a third-party chart is configured, the same in every environment |
+| chart `values.yaml` | Defaults of a Nexus chart that are the same in every environment |
+| `environments/global-values.yaml` | Conventions shared by the Nexus applications: security contexts, rollout strategy, zone spreading, autoscaling behavior, image pull policy |
+| `environments/<env>/<key>-values.yaml` | Values that differ per environment |
+| Terraform in `nexus-platform` | Everything that comes from AWS, and the service accounts its IAM roles trust |
 
-Terraform injects the environment name, the AWS Region, the regional ECR
-registry, the PostgreSQL, Valkey, and SQS endpoints and the worker's SQS
-timings, the database secret and its region, the service account names that
-its IAM roles trust, the trace collector address and sampling ratio, the
-storage class name, the ingress gateway names, the application hostname, the
-load balancer target group, and the Karpenter settings. Their single
-definitions are `environment.hcl` and `modules/platform/names.tf`.
-
-A value that must come from an environment file or from Terraform has no
+A value that must come from an environment file or from the wiring has no
 default in the chart and is marked `required`, so a missing value fails the
 render instead of silently using a stale default.
 
-Argo CD layers the files in this order, where later layers win: chart
-`values.yaml`, `global-values.yaml` for the Nexus applications only, the
-environment file, then the Terraform values. Every chart has a file in every
-environment, even when it has nothing to set yet. Values that differ per
-environment today:
+Values that differ per environment today:
 
-| Chart | dev | staging | production |
+| Application | dev | staging | production |
 | --- | --- | --- | --- |
 | `api`, `worker` | 1–5 replicas, PDB 1 | 2–10 replicas, PDB 1 | 3–20 replicas, PDB 2 |
 | `cloudbeaver` | 5Gi workspace | 5Gi workspace | 10Gi workspace |
-| `karpenter` | CPU limits 8/16/16, consolidate after 2m | 16/32/32, 5m | 32/96/64, 10m |
-| `storage` | volume deleted with its claim | volume retained | volume retained |
+| `karpenter` | 1 controller replica | 2 | 2 |
+| `karpenter-config` | CPU limits 8/16/16, consolidate after 2m | 16/32/32, 5m | 32/96/64, 10m |
+| `storage-config` | volume deleted with its claim | volume retained | volume retained |
 
 Image tags live in the environment files: `image.tag` for `api`, `worker`,
 and `cloudbeaver`. Application tags are immutable commit SHAs. The application
@@ -82,20 +145,20 @@ pipeline in `nexus-applications` updates `image.tag` in the DEV files after it
 publishes an image; staging and production advance only by a deliberate change
 of their tag to an already tested SHA.
 
-## Bootstrap
+To change the catalog for one environment only, for example to try a new
+add-on version in DEV first, create `environments/<env>/bootstrap-values.yaml`
+with the override. The root Application loads it when it exists.
 
-In each cluster, Terraform installs the pinned Argo CD release and then seeds
-one restricted AppProject and three ApplicationSets:
+## Common changes
 
-- external platform charts such as Istio, Karpenter, External Secrets, the AWS
-  Load Balancer Controller, and the monitoring stack;
-- the platform charts in `charts/platform`;
-- the Nexus applications in `charts/applications`.
-
-Every cluster follows `main`. Its environment decides which environment files
-apply, and Terraform injects its region. Failed syncs retry with backoff, so
-Applications that start before another Application has installed their CRDs
-still converge on a new cluster.
+- **Upgrade an add-on:** change its `version` in `bootstrap/values.yaml`.
+- **Tune an add-on:** edit `addons/<key>.yaml`, or create
+  `environments/<env>/<key>-values.yaml` for one environment.
+- **Add an add-on:** add an entry under `addons` in `bootstrap/values.yaml`
+  and its `addons/<key>.yaml`; wire any cluster facts in `_wiring.tpl`.
+- **Add a Nexus service:** create `charts/applications/<key>`, add `<key>`
+  under `applications`, and add its environment files. A service that needs
+  AWS access also needs a Pod Identity in `nexus-platform`.
 
 ## Applications
 
@@ -125,20 +188,20 @@ alert links to its runbook.
 
 ## Platform charts
 
-`ingress` owns the Istio `Gateway` on port 8443, the Nexus route, and a
+`ingress-config` owns the Istio `Gateway` on port 8443, the Nexus route, and a
 `TargetGroupBinding`. CloudFront terminates TLS for the public hostname and
 reaches the region's internal Network Load Balancer through a VPC origin;
-Terraform creates that load balancer and passes its target group ARN to this
-chart, and the binding registers the gateway pods. The gateway namespace
-enforces the Restricted Pod Security Standard.
+Terraform creates that load balancer and passes its target group ARN as a
+cluster fact, and the binding registers the gateway pods. The gateway
+namespace enforces the Restricted Pod Security Standard.
 
-`karpenter` defines one EC2 node class and three node pools: On-Demand
+`karpenter-config` defines one EC2 node class and three node pools: On-Demand
 `system` for platform controllers, On-Demand `general` for the API, and a
 tainted `spot` pool for tolerant workloads such as the worker. Karpenter uses
 only the subnets that Terraform tags for the environment's workload
 Availability Zones. Pin `amiAlias` to a tested release before production.
 
-`storage` defines the `nexus-gp3` StorageClass: encrypted with the
+`storage-config` defines the `nexus-gp3` StorageClass: encrypted with the
 infrastructure EBS key and expandable. In DEV a volume is deleted when its
 claim is deleted, so volumes do not pile up while DEV changes; staging and
 production retain volumes. Destroying a cluster does not delete claims, so
@@ -152,52 +215,51 @@ persistent workspace, exposed only through a `ClusterIP` Service.
 
 ## Observability
 
-Prometheus, Grafana, Loki, Tempo, and OpenTelemetry collectors come from the
-external platform charts. The `Nexus Overview` dashboard shows availability,
-request rate, CPU, memory, the Istio 5xx ratio, and 95th-percentile latency;
-`Nexus AWS Overview` shows the CloudWatch metrics of the region's PostgreSQL,
-Valkey, and SQS. Grafana discovers both dashboards automatically. Response
-procedures live in [`docs/runbooks`](docs/runbooks/README.md).
+Prometheus, Grafana, Loki, Tempo, and the OpenTelemetry collectors are add-ons.
+Istio and the API send traces to `otel-traces`, which forwards them to Tempo;
+`otel-logs` ships container logs to Loki. `tracing.samplingPercentage` in
+`bootstrap/values.yaml` sets the share of traced requests for both the mesh and
+the API. The `Nexus Overview` dashboard shows availability, request rate, CPU,
+memory, the Istio 5xx ratio, and 95th-percentile latency; `Nexus AWS Overview`
+shows the CloudWatch metrics of the region's PostgreSQL, Valkey, and SQS.
+Grafana discovers both dashboards automatically. Response procedures live in
+[`docs/runbooks`](docs/runbooks/README.md).
+
+Istio's validating webhook is changed by `istiod` at runtime, so `istio-base`
+ignores differences in that webhook's `failurePolicy` instead of fighting
+`istiod` on every sync.
 
 ## Validation
 
-`.github/workflows/validate.yaml` runs on pull requests and pushes to `main`.
-It lints the library chart, lints and renders every application and platform
-chart for every environment, validates the rendered resources
-against Kubernetes 1.35 schemas with kubeconform, and enforces the policies in
-`policies/` with Kyverno. It never connects to AWS or a cluster. Actions are
-pinned to commit SHAs and the kubeconform image to a digest; Dependabot keeps
-the pins current.
+`.github/workflows/validate.yaml` runs on pull requests and pushes to `main`
+and never connects to AWS or a cluster. For every environment it renders the
+`bootstrap` chart with `bootstrap/ci-values.yaml`, then renders every
+Application it produces exactly as Argo CD would: the same chart and version,
+the same values files in the same order, and the wired values. It lints the
+Nexus charts, checks that every values file is loaded, validates all rendered
+resources against Kubernetes 1.35 schemas with kubeconform, and enforces the
+policies in `policies/` on the Nexus charts with Kyverno. Actions are pinned to
+commit SHAs and the kubeconform image to a digest; Dependabot keeps the pins
+current.
 
-Validate a chart locally with Helm:
+Render the Applications of one environment locally:
+
+```bash
+helm template bootstrap bootstrap --namespace argocd \
+  --values bootstrap/ci-values.yaml \
+  --set cluster.environment=dev
+```
+
+Render one Application with the values Argo CD would give it:
 
 ```bash
 helm dependency build charts/applications/api
-helm lint charts/applications/api \
-  --values environments/global-values.yaml \
-  --values environments/dev/api-values.yaml \
-  --values charts/applications/api/ci-values.yaml \
-  --set environment=dev
+helm template bootstrap bootstrap --namespace argocd \
+  --values bootstrap/ci-values.yaml \
+  --set cluster.environment=dev \
+  | yq 'select(.metadata.name == "nexus-api") | .spec.sources[0].helm.valuesObject' > /tmp/nexus-api.yaml
 helm template nexus-api charts/applications/api --namespace nexus \
   --values environments/global-values.yaml \
   --values environments/dev/api-values.yaml \
-  --values charts/applications/api/ci-values.yaml \
-  --set environment=dev
+  --values /tmp/nexus-api.yaml
 ```
-
-Charts with required values have a `ci-values.yaml` that stands in for the
-values Terraform injects, so it comes last, together with the environment
-name:
-
-```bash
-helm lint charts/platform/karpenter \
-  --values environments/dev/karpenter-values.yaml \
-  --values charts/platform/karpenter/ci-values.yaml
-```
-
-The workflow finds charts by convention: a chart's folder name matches its
-environment files, for example `charts/platform/karpenter` and
-`environments/dev/karpenter-values.yaml`. A new chart therefore needs a values
-file in every environment. A new platform chart also needs an entry with its
-Argo CD release name and namespace in the workflow, and a `ci-values.yaml` if
-it has required values.

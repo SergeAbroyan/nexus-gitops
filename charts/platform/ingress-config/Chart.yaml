@@ -1,5 +1,5 @@
 apiVersion: v2
-name: nexus-ingress
+name: nexus-ingress-config
 description: Internal Istio gateway and Nexus HTTP routing
 type: application
 version: 0.4.0

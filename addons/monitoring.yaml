@@ -1,0 +1,146 @@
+fullnameOverride: monitoring
+
+kubeEtcd:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+
+prometheusOperator:
+  nodeSelector:
+    role: system
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+prometheus:
+  prometheusSpec:
+    retention: 7d
+    retentionSize: 16GB
+    nodeSelector:
+      role: general
+    podMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelector: {}
+    podMonitorNamespaceSelector: {}
+    ruleSelectorNilUsesHelmValues: false
+    ruleSelector: {}
+    ruleNamespaceSelector: {}
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: "2"
+        memory: 3Gi
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 20Gi
+
+alertmanager:
+  serviceAccount:
+    create: true
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      group_by:
+        - namespace
+        - alertname
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 12h
+      receiver: nexus-sns
+      routes:
+        - receiver: "null"
+          matchers:
+            - alertname = Watchdog
+  alertmanagerSpec:
+    nodeSelector:
+      role: general
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+    storage:
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 5Gi
+
+grafana:
+  serviceAccount:
+    create: true
+  admin:
+    existingSecret: grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
+  ingress:
+    enabled: false
+  nodeSelector:
+    role: general
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+      provider:
+        allowUiUpdates: false
+  persistence:
+    enabled: true
+    type: sts
+    accessModes:
+      - ReadWriteOnce
+    size: 5Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+
+extraManifests:
+  aws-secrets-manager:
+    apiVersion: external-secrets.io/v1
+    kind: SecretStore
+    metadata:
+      name: aws-secrets-manager
+    spec:
+      provider:
+        aws:
+          service: SecretsManager
+  grafana-admin:
+    apiVersion: external-secrets.io/v1
+    kind: ExternalSecret
+    metadata:
+      name: grafana-admin
+    spec:
+      refreshInterval: 1h
+      secretStoreRef:
+        name: aws-secrets-manager
+        kind: SecretStore
+      target:
+        name: grafana-admin
+        creationPolicy: Owner
+        template:
+          type: Opaque
+          data:
+            admin-user: admin
+            admin-password: "{{ `{{ .adminPassword }}` }}"

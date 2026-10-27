@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   helm:
-    name: Lint and render Helm charts
+    name: Render every Argo CD Application
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -38,46 +38,85 @@ jobs:
       - name: Lint the library chart
         run: helm lint charts/base
 
-      - name: Lint and render application charts
+      - name: Render the bootstrap chart for every environment
         run: |
           set -euo pipefail
-          mkdir -p .rendered
-          for chart in charts/applications/*/; do
-            component="$(basename "${chart}")"
-            for environment_directory in environments/*/; do
-              environment="$(basename "${environment_directory}")"
-              values=(--values environments/global-values.yaml --values "${environment_directory}${component}-values.yaml")
-              if [[ -f "${chart}ci-values.yaml" ]]; then
-                values+=(--values "${chart}ci-values.yaml")
-              fi
-              values+=(--set "environment=${environment}")
-              helm lint "${chart}" "${values[@]}"
-              helm template "nexus-${component}" "${chart}" --namespace nexus "${values[@]}" > ".rendered/${component}-${environment}.yaml"
-            done
+          mkdir -p .rendered .ci
+          : > .ci/loaded-values-files
+          for environment_directory in environments/*/; do
+            environment="$(basename "${environment_directory}")"
+            values=(--values bootstrap/ci-values.yaml --set "cluster.environment=${environment}")
+            if [[ -f "${environment_directory}bootstrap-values.yaml" ]]; then
+              values=(--values "${environment_directory}bootstrap-values.yaml" "${values[@]}")
+              echo "${environment_directory}bootstrap-values.yaml" >> .ci/loaded-values-files
+            fi
+            mkdir -p ".rendered/${environment}/addons" ".rendered/${environment}/charts" ".ci/values/${environment}"
+            helm lint bootstrap --namespace argocd "${values[@]}"
+            helm template bootstrap bootstrap --namespace argocd "${values[@]}" > ".rendered/${environment}/bootstrap.yaml"
           done
 
-      - name: Lint and render platform charts
+      - name: Render every Application the way Argo CD does
         run: |
           set -euo pipefail
-          for chart in charts/platform/*/; do
-            name="$(basename "${chart}")"
-            case "${name}" in
-              cloudbeaver) release=cloudbeaver namespace=cloudbeaver ;;
-              ingress) release=ingress-config namespace=istio-ingress ;;
-              karpenter) release=karpenter-config namespace=kube-system ;;
-              storage) release=storage-config namespace=kube-system ;;
-              *) echo "Add ${name} to this list with its Argo CD release name and namespace." >&2; exit 1 ;;
-            esac
-            for environment_directory in environments/*/; do
-              environment="$(basename "${environment_directory}")"
-              values=(--values "${environment_directory}${name}-values.yaml")
-              if [[ -f "${chart}ci-values.yaml" ]]; then
-                values+=(--values "${chart}ci-values.yaml")
+          for bootstrap in .rendered/*/bootstrap.yaml; do
+            directory="$(dirname "${bootstrap}")"
+            environment="$(basename "${directory}")"
+            while IFS= read -r application; do
+              name="$(jq -r '.metadata.name' <<< "${application}")"
+              namespace="$(jq -r '.spec.destination.namespace' <<< "${application}")"
+              source="$(jq -c '.spec.sources[0]' <<< "${application}")"
+              release="$(jq -r '.helm.releaseName' <<< "${source}")"
+
+              values=()
+              while IFS= read -r file; do
+                file="${file#\$values/}"
+                if [[ -f "${file}" ]]; then
+                  values+=(--values "${file}")
+                  echo "${file}" >> .ci/loaded-values-files
+                fi
+              done < <(jq -r '.helm.valueFiles[]?' <<< "${source}")
+              jq '.helm.valuesObject // {}' <<< "${source}" > ".ci/values/${environment}/${name}.json"
+              values+=(--values ".ci/values/${environment}/${name}.json")
+
+              chart="$(jq -r '.chart // empty' <<< "${source}")"
+              if [[ -n "${chart}" ]]; then
+                repository="$(jq -r '.repoURL' <<< "${source}")"
+                version="$(jq -r '.targetRevision' <<< "${source}")"
+                chart_directory=".ci/charts/${chart}-${version}"
+                if [[ ! -d "${chart_directory}" ]]; then
+                  case "${repository}" in
+                    https://*) helm pull "${chart}" --repo "${repository}" --version "${version}" --untar --untardir "${chart_directory}" ;;
+                    *) helm pull "oci://${repository}/${chart}" --version "${version}" --untar --untardir "${chart_directory}" ;;
+                  esac
+                fi
+                path="${chart_directory}/${chart}"
+                output="${directory}/addons/${name}.yaml"
+              else
+                path="$(jq -r '.path' <<< "${source}")"
+                output="${directory}/charts/${name}.yaml"
+                helm lint "${path}" --namespace "${namespace}" "${values[@]}"
               fi
-              helm lint "${chart}" "${values[@]}"
-              helm template "${release}" "${chart}" --namespace "${namespace}" "${values[@]}" > ".rendered/${name}-${environment}.yaml"
-            done
+
+              helm template "${release}" "${path}" \
+                --namespace "${namespace}" \
+                --kube-version 1.35.0 \
+                --api-versions monitoring.coreos.com/v1 \
+                --include-crds \
+                "${values[@]}" > "${output}"
+            done < <(yq -o=json -I=0 'select(.kind == "Application")' "${bootstrap}")
           done
+
+      - name: Check that every values file is loaded
+        run: |
+          set -euo pipefail
+          sort -u .ci/loaded-values-files > .ci/loaded
+          find addons environments -name '*.yaml' | sort > .ci/present
+          unused="$(comm -13 .ci/loaded .ci/present)"
+          if [[ -n "${unused}" ]]; then
+            echo "No Application loads these values files; rename them after their Application or delete them:" >&2
+            echo "${unused}" >&2
+            exit 1
+          fi
 
       - name: Validate Kubernetes schemas
         uses: docker://ghcr.io/yannh/kubeconform:v0.7.0@sha256:85dbef6b4b312b99133decc9c6fc9495e9fc5f92293d4ff3b7e1b30f5611823c
@@ -94,8 +133,9 @@ jobs:
         with:
           release: v1.19.1
 
-      - name: Enforce workload security policies
+      - name: Enforce workload security policies on Nexus charts
         run: |
-          for manifest in .rendered/*.yaml; do
+          set -euo pipefail
+          for manifest in .rendered/*/charts/*.yaml; do
             kyverno apply policies --resource "${manifest}" --warnings-as-errors
           done

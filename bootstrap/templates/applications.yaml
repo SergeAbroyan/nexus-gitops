@@ -1,0 +1,47 @@
+{{- $root := . -}}
+{{- range (include "bootstrap.applications" . | fromYaml).applications }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: {{ .name }}
+  namespace: {{ $root.Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: {{ .wave | quote }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: {{ $root.Values.project }}
+  sources:
+    - repoURL: {{ .source.repoURL }}
+      targetRevision: {{ .source.targetRevision | quote }}
+      {{- with .source.chart }}
+      chart: {{ . }}
+      {{- end }}
+      {{- with .source.path }}
+      path: {{ . }}
+      {{- end }}
+      helm:
+        releaseName: {{ .name }}
+        valueFiles:
+          {{- toYaml .valueFiles | nindent 10 }}
+        ignoreMissingValueFiles: true
+        {{- with .values }}
+        valuesObject:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+    - repoURL: {{ $root.Values.cluster.gitops.repository }}
+      targetRevision: {{ $root.Values.cluster.gitops.revision | quote }}
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ .namespace }}
+  {{- $syncPolicy := deepCopy $root.Values.syncPolicy }}
+  {{- with .ignoreDifferences }}
+  {{- $_ := set $syncPolicy "syncOptions" (append ($syncPolicy.syncOptions | default list) "RespectIgnoreDifferences=true") }}
+  ignoreDifferences:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  syncPolicy:
+    {{- toYaml $syncPolicy | nindent 4 }}
+{{- end }}

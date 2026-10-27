@@ -1,0 +1,12 @@
+replicas: 1
+
+nodeSelector:
+  role: system
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 100Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi

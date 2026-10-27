@@ -1,0 +1,164 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["project", "syncPolicy", "storageClassName", "ingressGateway", "tracing", "addons", "platform", "applications", "cluster"],
+  "properties": {
+    "project": { "$ref": "#/definitions/name" },
+    "storageClassName": { "$ref": "#/definitions/name" },
+    "ingressGateway": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["selector"],
+      "properties": {
+        "selector": { "type": "object", "minProperties": 1, "additionalProperties": { "type": "string" } }
+      }
+    },
+    "tracing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["port", "samplingPercentage"],
+      "properties": {
+        "port": { "$ref": "#/definitions/port" },
+        "samplingPercentage": { "type": "number", "minimum": 0, "maximum": 100 }
+      }
+    },
+    "addons": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["wave", "repoURL", "chart", "version"],
+        "properties": {
+          "wave": { "type": "integer" },
+          "namespace": { "$ref": "#/definitions/name" },
+          "repoURL": { "type": "string", "minLength": 1 },
+          "chart": { "type": "string", "minLength": 1 },
+          "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+          "ignoreDifferences": { "type": "array" }
+        }
+      }
+    },
+    "platform": { "$ref": "#/definitions/localCharts" },
+    "applications": { "$ref": "#/definitions/localCharts" },
+    "cluster": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "environment", "name", "region", "vpcId", "gitops", "hostname", "ingress", "ecrRegistry", "ebsKmsKeyArn",
+        "karpenter", "serviceAccounts", "alertTopicArn", "grafanaAdminSecretArn", "database", "cache", "queue"
+      ],
+      "properties": {
+        "environment": { "$ref": "#/definitions/name" },
+        "name": { "$ref": "#/definitions/name" },
+        "region": { "type": "string", "pattern": "^[a-z]{2}(-[a-z]+)+-[0-9]+$" },
+        "vpcId": { "type": "string", "pattern": "^vpc-[0-9a-f]+$" },
+        "gitops": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["repository", "revision"],
+          "properties": {
+            "repository": { "type": "string", "pattern": "^https://" },
+            "revision": { "type": "string", "minLength": 1 }
+          }
+        },
+        "hostname": { "type": "string", "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$" },
+        "ingress": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["port", "targetGroupArn"],
+          "properties": {
+            "port": { "$ref": "#/definitions/port" },
+            "targetGroupArn": { "$ref": "#/definitions/arn" }
+          }
+        },
+        "ecrRegistry": { "type": "string", "pattern": "^[0-9]{12}\\.dkr\\.ecr\\.[a-z0-9-]+\\.amazonaws\\.com$" },
+        "ebsKmsKeyArn": { "$ref": "#/definitions/arn" },
+        "karpenter": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["nodeRoleName", "interruptionQueue"],
+          "properties": {
+            "nodeRoleName": { "type": "string", "minLength": 1 },
+            "interruptionQueue": { "type": "string", "minLength": 1 }
+          }
+        },
+        "serviceAccounts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["karpenter", "loadBalancerController", "externalSecrets", "alertmanager", "grafana", "api", "worker"],
+          "properties": {
+            "karpenter": { "$ref": "#/definitions/serviceAccount" },
+            "loadBalancerController": { "$ref": "#/definitions/serviceAccount" },
+            "externalSecrets": { "$ref": "#/definitions/serviceAccount" },
+            "alertmanager": { "$ref": "#/definitions/serviceAccount" },
+            "grafana": { "$ref": "#/definitions/serviceAccount" },
+            "api": { "$ref": "#/definitions/serviceAccount" },
+            "worker": { "$ref": "#/definitions/serviceAccount" }
+          }
+        },
+        "alertTopicArn": { "$ref": "#/definitions/arn" },
+        "grafanaAdminSecretArn": { "$ref": "#/definitions/arn" },
+        "database": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["host", "port", "name", "username", "secretArn"],
+          "properties": {
+            "host": { "type": "string", "minLength": 1 },
+            "port": { "$ref": "#/definitions/port" },
+            "name": { "type": "string", "minLength": 1 },
+            "username": { "type": "string", "minLength": 1 },
+            "secretArn": { "$ref": "#/definitions/arn" }
+          }
+        },
+        "cache": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["host", "port", "username", "replicationGroupId"],
+          "properties": {
+            "host": { "type": "string", "minLength": 1 },
+            "port": { "$ref": "#/definitions/port" },
+            "username": { "type": "string", "minLength": 1 },
+            "replicationGroupId": { "type": "string", "minLength": 1 }
+          }
+        },
+        "queue": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["url", "receiveWaitTimeSeconds", "visibilityTimeoutSeconds"],
+          "properties": {
+            "url": { "type": "string", "pattern": "^https://" },
+            "receiveWaitTimeSeconds": { "type": "integer", "minimum": 0, "maximum": 20 },
+            "visibilityTimeoutSeconds": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "name": { "type": "string", "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$" },
+    "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+    "arn": { "type": "string", "pattern": "^arn:aws[a-z-]*:[a-z0-9-]+:[a-z0-9-]*:[0-9]{12}:.+$" },
+    "serviceAccount": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["namespace", "name"],
+      "properties": {
+        "namespace": { "$ref": "#/definitions/name" },
+        "name": { "$ref": "#/definitions/name" }
+      }
+    },
+    "localCharts": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["wave"],
+        "properties": {
+          "wave": { "type": "integer" },
+          "namespace": { "$ref": "#/definitions/name" },
+          "ignoreDifferences": { "type": "array" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,57 @@
+replicas: 1
+
+tempo:
+  reportingEnabled: false
+  retention: 168h
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 2Gi
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+serviceAccount:
+  create: true
+  automountServiceAccountToken: false
+
+service:
+  type: ClusterIP
+
+persistence:
+  enabled: true
+  enableStatefulSetAutoDeletePVC: false
+  accessModes:
+    - ReadWriteOnce
+  size: 20Gi
+
+nodeSelector:
+  role: general
+
+serviceMonitor:
+  enabled: true
+  interval: 30s
+
+tempoQuery:
+  enabled: false

@@ -1,0 +1,27 @@
+{{- $repositories := list -}}
+{{- $namespaces := list -}}
+{{- range (include "bootstrap.applications" . | fromYaml).applications -}}
+{{- $repositories = append $repositories .source.repoURL -}}
+{{- $namespaces = append $namespaces .namespace -}}
+{{- end -}}
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: {{ .Values.project }}
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  sourceRepos:
+    {{- toYaml ($repositories | uniq | sortAlpha) | nindent 4 }}
+  destinations:
+    {{- range $namespaces | uniq | sortAlpha }}
+    - server: https://kubernetes.default.svc
+      namespace: {{ . }}
+    {{- end }}
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
