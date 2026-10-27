@@ -30,7 +30,7 @@ addons:
     namespace: istio-system
     repoURL: https://blob.istio.io/istio-release/charts
     chart: base
-    version: 1.30.5
+    version: 1.30.7
     ignoreDifferences:
       - group: admissionregistration.k8s.io
         kind: ValidatingWebhookConfiguration
@@ -42,74 +42,74 @@ addons:
     namespace: istio-system
     repoURL: https://blob.istio.io/istio-release/charts
     chart: cni
-    version: 1.30.5
+    version: 1.30.7
   istiod:
     wave: 2
     namespace: istio-system
     repoURL: https://blob.istio.io/istio-release/charts
     chart: istiod
-    version: 1.30.5
+    version: 1.30.7
   istio-ingress:
     wave: 4
     namespace: istio-ingress
     repoURL: https://blob.istio.io/istio-release/charts
     chart: gateway
-    version: 1.30.5
+    version: 1.30.7
   karpenter-crd:
     wave: 1
     repoURL: public.ecr.aws/karpenter
     chart: karpenter-crd
-    version: 1.14.1
+    version: 1.15.1
   karpenter:
     wave: 2
     repoURL: public.ecr.aws/karpenter
     chart: karpenter
-    version: 1.14.1
+    version: 1.15.1
   aws-load-balancer-controller:
     wave: 1
     repoURL: https://aws.github.io/eks-charts
     chart: aws-load-balancer-controller
-    version: 3.4.3
+    version: 3.6.2
   external-secrets:
     wave: 2
     repoURL: https://charts.external-secrets.io
     chart: external-secrets
-    version: 2.11.0
+    version: 2.14.0
   metrics-server:
     wave: 2
     namespace: kube-system
     repoURL: https://kubernetes-sigs.github.io/metrics-server
     chart: metrics-server
-    version: 3.13.1
+    version: 3.14.0
   monitoring:
     wave: 4
     repoURL: https://prometheus-community.github.io/helm-charts
     chart: kube-prometheus-stack
-    version: 92.1.0
+    version: 92.14.0
   loki:
     wave: 4
     namespace: monitoring
     repoURL: ghcr.io/grafana-community/helm-charts
     chart: loki
-    version: 18.13.1
+    version: 20.0.1
   tempo:
     wave: 4
     namespace: monitoring
     repoURL: ghcr.io/grafana-community/helm-charts
     chart: tempo
-    version: 3.0.0
+    version: 3.2.1
   otel-traces:
     wave: 4
     namespace: monitoring
     repoURL: ghcr.io/open-telemetry/opentelemetry-helm-charts
     chart: opentelemetry-collector
-    version: 0.172.0
+    version: 0.177.0
   otel-logs:
     wave: 4
     namespace: monitoring
     repoURL: ghcr.io/open-telemetry/opentelemetry-helm-charts
     chart: opentelemetry-collector
-    version: 0.172.0
+    version: 0.177.0
 
 platform:
   karpenter-config:

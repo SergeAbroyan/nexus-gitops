@@ -241,7 +241,7 @@ and never connects to AWS or a cluster. For every environment it renders the
 Application it produces exactly as Argo CD would: the same chart and version,
 the same values files in the same order, and the wired values. It lints the
 Nexus charts, checks that every values file is loaded, validates all rendered
-resources against Kubernetes 1.35 schemas with kubeconform, and enforces the
+resources against Kubernetes 1.36 schemas with kubeconform, and enforces the
 policies in `policies/` on the Nexus charts with Kyverno. Actions are pinned to
 commit SHAs and the kubeconform image to a digest; Dependabot keeps the pins
 current.
