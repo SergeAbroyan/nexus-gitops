@@ -61,5 +61,6 @@ externalSecret:
   storeName: aws-secretsmanager
   refreshInterval: 1h
   remoteSecretKey: ""
+  region: ""
   passwordProperty: password
 

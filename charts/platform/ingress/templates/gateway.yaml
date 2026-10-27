@@ -7,16 +7,8 @@ spec:
     {{- toYaml .Values.gateway.selector | nindent 4 }}
   servers:
     - port:
-        number: 80
+        number: {{ .Values.gateway.port }}
         name: http
-        protocol: HTTP
-      hosts:
-        - {{ .Values.host | quote }}
-      tls:
-        httpsRedirect: true
-    - port:
-        number: 8443
-        name: https-terminated
         protocol: HTTP
       hosts:
         - {{ .Values.host | quote }}

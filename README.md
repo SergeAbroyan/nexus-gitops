@@ -31,8 +31,9 @@ do not share the normal Deployment/Service lifecycle.
 
 ## GitOps bootstrap
 
-Terraform installs the pinned Argo CD Helm release after creating EKS. That
-release seeds one restricted AppProject and three focused ApplicationSets:
+In each region, Terraform installs the pinned Argo CD Helm release after
+creating EKS. A second Helm release then seeds one restricted AppProject and
+three focused ApplicationSets:
 
 - external platform charts such as Istio and Karpenter;
 - local platform and operations charts from this repository;
@@ -45,7 +46,7 @@ Terraform/Terragrunt -> Argo CD -> ApplicationSets -> Helm charts
 ```
 
 ApplicationSet definitions and infrastructure-derived Helm values live in the
-Terraform Argo CD module. This keeps service registration in one location and
+Terraform `platform` module of `nexus-platform`. This keeps service registration in one location and
 avoids duplicating pointer files in this repository.
 
 External Secrets uses the `external-secrets` service account. Its name and
@@ -54,9 +55,8 @@ namespace exactly match the EKS Pod Identity association created by Terraform.
 The external-platform ApplicationSet installs the essential cluster controllers:
 
 - Metrics Server supplies resource metrics to the Horizontal Pod Autoscalers.
-- AWS Load Balancer Controller manages AWS load balancers for Kubernetes.
-- ExternalDNS publishes annotated load-balancer Services in the delegated
-  Route 53 zone.
+- AWS Load Balancer Controller registers the Istio gateway pods in the
+  Terraform-managed load balancer target group.
 - Karpenter CRDs are managed separately from the Karpenter controller so they
   can be upgraded safely.
 
@@ -135,13 +135,27 @@ Operational response procedures live in [`docs/runbooks`](docs/runbooks/README.m
 Every Prometheus application alert includes a `runbook_url` annotation, while
 the runbook index maps AWS CloudWatch alarm names to their response procedure.
 
-The `charts/platform/ingress` chart owns the shared Istio `Gateway` and Nexus
-route. All application traffic goes to the Go API, which serves both the web
-page and the REST endpoints. Port 80 redirects to HTTPS. The internal AWS NLB terminates TLS with
-the ACM certificate supplied by Terraform and forwards decrypted HTTP to the
-gateway's port 8443. ExternalDNS creates the hostname from the Service
-annotation. Because the NLB remains internal, clients still need VPC network
-access; Grafana and CloudBeaver remain unexposed.
+The `charts/platform/ingress` chart owns the shared Istio `Gateway`, the Nexus
+route, and a `TargetGroupBinding`. All application traffic goes to the Go API,
+which serves both the web page and the REST endpoints. CloudFront terminates
+TLS for the public hostname and reaches each region's internal Network Load
+Balancer through a VPC origin. Terraform creates that load balancer and its
+target group and passes the target group ARN to this chart; the
+`TargetGroupBinding` registers the gateway pods, which listen for HTTP on port
+8443. Grafana and CloudBeaver remain unexposed.
+
+## Multiple regions
+
+Nexus runs the same applications in a primary and a standby region. Each
+cluster's Argo CD reconciles this repository with the same environment files;
+Terraform injects the region-specific endpoints, the regional ECR registry, and
+the database secret. In the standby region the database is a read replica of
+the primary, so the API's External Secrets store reads the password from the
+primary region through `externalSecret.region`, and the API skips schema
+changes while the database is read-only.
+
+DEV runs at least two replicas of the API and worker so that pods spread across
+Availability Zones.
 
 ## CloudBeaver
 

@@ -7,6 +7,7 @@ KARPENTER_TEST_VALUES := charts/platform/karpenter/test-values.yaml
 STORAGE_CHART := charts/platform/storage
 STORAGE_TEST_VALUES := charts/platform/storage/test-values.yaml
 INGRESS_CHART := charts/platform/ingress
+INGRESS_TEST_VALUES := charts/platform/ingress/test-values.yaml
 CLOUDBEAVER_CHART := charts/platform/cloudbeaver
 DEPENDENT_CHARTS := $(RUNTIME_CHART) $(API_CHART) $(WORKER_CHART) $(INGRESS_CHART) $(CLOUDBEAVER_CHART)
 
@@ -34,7 +35,7 @@ lint-all: dependencies
 	done
 	helm lint $(KARPENTER_CHART) --values $(KARPENTER_TEST_VALUES)
 	helm lint $(STORAGE_CHART) --values $(STORAGE_TEST_VALUES)
-	helm lint $(INGRESS_CHART)
+	helm lint $(INGRESS_CHART) --values $(INGRESS_TEST_VALUES)
 	helm lint $(CLOUDBEAVER_CHART)
 
 template: dependencies
@@ -51,5 +52,5 @@ render-all: dependencies
 	done
 	helm template karpenter-config $(KARPENTER_CHART) --namespace kube-system --values $(KARPENTER_TEST_VALUES) > $(RENDER_DIRECTORY)/karpenter.yaml
 	helm template storage-config $(STORAGE_CHART) --namespace kube-system --values $(STORAGE_TEST_VALUES) > $(RENDER_DIRECTORY)/storage.yaml
-	helm template ingress-config $(INGRESS_CHART) --namespace istio-ingress > $(RENDER_DIRECTORY)/ingress.yaml
+	helm template ingress-config $(INGRESS_CHART) --namespace istio-ingress --values $(INGRESS_TEST_VALUES) > $(RENDER_DIRECTORY)/ingress.yaml
 	helm template cloudbeaver $(CLOUDBEAVER_CHART) --namespace cloudbeaver > $(RENDER_DIRECTORY)/cloudbeaver.yaml
