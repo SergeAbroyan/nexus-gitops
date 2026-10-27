@@ -57,7 +57,7 @@
           "additionalProperties": false,
           "required": ["repository", "revision"],
           "properties": {
-            "repository": { "type": "string", "pattern": "^https://" },
+            "repository": { "type": "string", "pattern": "^git@[^:]+:.+\\.git$" },
             "revision": { "type": "string", "minLength": 1 }
           }
         },

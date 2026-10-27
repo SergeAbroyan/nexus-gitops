@@ -45,6 +45,10 @@ policies/                    Kyverno workload security policies
 
 ## How Argo CD deploys a cluster
 
+This repository is private. Argo CD reads it over SSH with a read-only GitHub
+deploy key that Terraform installs from Secrets Manager; the `nexus-platform`
+README explains how to create it.
+
 Terraform creates two Argo CD objects in each cluster:
 
 - the `bootstrap` AppProject, which may only create Argo CD `Application` and
