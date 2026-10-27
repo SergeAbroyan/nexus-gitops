@@ -6,6 +6,7 @@
 {{- $env := list -}}
 {{- if $values.observability.tracing.enabled -}}
 {{- $env = append $env (dict "name" "OTEL_EXPORTER_OTLP_ENDPOINT" "value" (required "observability.tracing.endpoint is required" $values.observability.tracing.endpoint)) -}}
+{{- $env = append $env (dict "name" "OTEL_TRACES_SAMPLER" "value" "parentbased_traceidratio") -}}
 {{- $env = append $env (dict "name" "OTEL_TRACES_SAMPLER_ARG" "value" (required "observability.tracing.sampleRatio is required" $values.observability.tracing.sampleRatio)) -}}
 {{- $env = append $env (dict "name" "OTEL_RESOURCE_ATTRIBUTES" "value" (printf "deployment.environment.name=%s" (required "environment is required" $values.environment))) -}}
 {{- end -}}
