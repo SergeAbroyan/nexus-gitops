@@ -57,10 +57,10 @@ spec:
             - large
             - xlarge
   limits:
-    cpu: {{ $pool.cpuLimit | quote }}
+    cpu: {{ required (printf "nodePools.%s.cpuLimit is required" $poolName) $pool.cpuLimit | quote }}
   disruption:
     consolidationPolicy: {{ $root.Values.disruption.consolidationPolicy }}
-    consolidateAfter: {{ $root.Values.disruption.consolidateAfter }}
+    consolidateAfter: {{ required "disruption.consolidateAfter is required" $root.Values.disruption.consolidateAfter }}
     budgets:
       - nodes: "10%"
 {{- end }}

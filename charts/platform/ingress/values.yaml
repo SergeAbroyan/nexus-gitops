@@ -1,14 +1,5 @@
-host: "*"
-targetGroupArn: ""
-
 gateway:
   name: nexus-ingress
-  port: 8443
-  service: istio-ingress
-  selector:
-    istio: ingress
 
 nexus:
-  namespace: nexus
   apiService: nexus-api
-  servicePort: 80

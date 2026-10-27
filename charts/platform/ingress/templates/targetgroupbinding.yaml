@@ -1,10 +1,10 @@
 apiVersion: elbv2.k8s.aws/v1beta1
 kind: TargetGroupBinding
 metadata:
-  name: {{ .Values.gateway.service }}
+  name: {{ required "gateway.service is required" .Values.gateway.service }}
 spec:
   serviceRef:
     name: {{ .Values.gateway.service }}
-    port: {{ .Values.gateway.port }}
+    port: {{ required "gateway.port is required" .Values.gateway.port }}
   targetGroupARN: {{ required "targetGroupArn is required" .Values.targetGroupArn | quote }}
   targetType: ip

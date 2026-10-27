@@ -1,6 +1,3 @@
-clusterName: ""
-nodeRoleName: ""
-ebsKmsKeyArn: ""
 amiAlias: al2023@latest
 
 nodeClass:
@@ -9,16 +6,12 @@ nodeClass:
 
 nodePools:
   system:
-    cpuLimit: "16"
     weight: 100
   general:
-    cpuLimit: "32"
     weight: 50
   spot:
-    cpuLimit: "32"
     weight: 25
 
 disruption:
   consolidationPolicy: WhenEmptyOrUnderutilized
-  consolidateAfter: 5m
   expireAfter: 720h

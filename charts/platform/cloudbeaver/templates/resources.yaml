@@ -8,7 +8,10 @@
   "labelName" $name
   "partOf" $partOf
   "component" $component
-  "claim" .Values.persistence
+  "claim" (dict
+    "storageClassName" (required "persistence.storageClassName is required" .Values.persistence.storageClassName)
+    "size" (required "persistence.size is required" .Values.persistence.size)
+  )
 ) }}
 {{- $workload := dict
   "replicaCount" .Values.replicaCount

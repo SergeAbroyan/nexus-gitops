@@ -4,11 +4,11 @@ metadata:
   name: {{ .Values.gateway.name }}
 spec:
   selector:
-    {{- toYaml .Values.gateway.selector | nindent 4 }}
+    {{- toYaml (required "gateway.selector is required" .Values.gateway.selector) | nindent 4 }}
   servers:
     - port:
-        number: {{ .Values.gateway.port }}
+        number: {{ required "gateway.port is required" .Values.gateway.port }}
         name: http
         protocol: HTTP
       hosts:
-        - {{ .Values.host | quote }}
+        - {{ required "host is required" .Values.host | quote }}

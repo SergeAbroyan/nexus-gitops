@@ -1,13 +1,12 @@
-{{- $name := default .Chart.Name .Values.nameOverride -}}
+{{- $config := .Values.config -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ $name }}
+  name: {{ .Chart.Name }}
   labels:
-    {{- include "nexus-base.labels" (dict "root" . "name" $name "partOf" "nexus" "component" "worker") | nindent 4 }}
+    {{- include "nexus-base.labels" (dict "root" . "name" .Chart.Name "partOf" "nexus" "component" "worker") | nindent 4 }}
 data:
-  AWS_REGION: {{ .Values.config.awsRegion | quote }}
-  SQS_QUEUE_URL: {{ .Values.config.sqs.queueURL | quote }}
-  SQS_WAIT_TIME_SECONDS: {{ .Values.config.sqs.waitTimeSeconds | quote }}
-  SQS_VISIBILITY_TIMEOUT_SECONDS: {{ .Values.config.sqs.visibilityTimeoutSeconds | quote }}
-
+  AWS_REGION: {{ required "config.awsRegion is required" $config.awsRegion | quote }}
+  SQS_QUEUE_URL: {{ required "config.sqs.queueURL is required" $config.sqs.queueURL | quote }}
+  SQS_WAIT_TIME_SECONDS: {{ required "config.sqs.waitTimeSeconds is required" $config.sqs.waitTimeSeconds | quote }}
+  SQS_VISIBILITY_TIMEOUT_SECONDS: {{ required "config.sqs.visibilityTimeoutSeconds is required" $config.sqs.visibilityTimeoutSeconds | quote }}

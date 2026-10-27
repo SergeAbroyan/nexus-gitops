@@ -40,48 +40,47 @@ The repository contains no Argo CD `Application` or `ApplicationSet`
 resources; they live in the `platform` module of `nexus-platform`, so service
 registration happens in one place.
 
-## How values are combined
+## Where each value lives
 
-Argo CD renders `api`, `worker`, and `runtime` from four layers, where later
-layers win:
+Every value has exactly one home, so nothing is set twice:
 
-1. The chart's `values.yaml` holds the service defaults: image repository,
-   port, health checks, resources, placement, autoscaling, and its
-   configuration interface.
-2. `environments/global-values.yaml` holds conventions shared by every Nexus
-   service: security contexts, rollout strategy, zone spreading, autoscaling
-   behavior, and the tracing endpoint.
-3. `environments/<environment>/<chart>-values.yaml` holds the environment's
-   deployment state: environment name, image tag, replica range, and
-   disruption budget.
-4. Terraform injects what comes from AWS for the cluster's region: the
-   regional ECR registry, the AWS Region, the PostgreSQL, Valkey, and SQS
-   endpoints, and the database secret with its region.
+| Location | Holds |
+| --- | --- |
+| chart `values.yaml` | Defaults that are the same in every environment: image repository, port, health checks, resources, placement, autoscaling targets |
+| `environments/global-values.yaml` | Conventions shared by the API and worker: security contexts, rollout strategy, zone spreading, autoscaling behavior, image pull policy |
+| `environments/<environment>/<chart>-values.yaml` | Values that differ per environment; every environment sets them |
+| Terraform in `nexus-platform` | Everything that comes from AWS or that Terraform names |
 
-Platform charts use three layers: the chart's `values.yaml`, the environment
-file `environments/<environment>/<chart>-values.yaml`, and the values that
-Terraform injects, such as the cluster name, Karpenter node role, EBS key,
-application hostname, and load balancer target group. They do not read
-`global-values.yaml`, which holds conventions for Nexus services only.
+Terraform injects the environment name, the AWS Region, the regional ECR
+registry, the PostgreSQL, Valkey, and SQS endpoints and the worker's SQS
+timings, the database secret and its region, the service account names that
+its IAM roles trust, the trace collector address and sampling ratio, the
+storage class name, the ingress gateway names, the application hostname, the
+load balancer target group, and the Karpenter settings. Their single
+definitions are `environment.hcl` and `modules/platform/names.tf`.
 
-Every chart has a file in every environment, even when it has nothing to
-override yet, so each environment folder shows everything that is deployed to
-it. Settings that differ per environment today:
+A value that must come from an environment file or from Terraform has no
+default in the chart and is marked `required`, so a missing value fails the
+render instead of silently using a stale default.
+
+Argo CD layers the files in this order, where later layers win: chart
+`values.yaml`, `global-values.yaml` for the Nexus applications only, the
+environment file, then the Terraform values. Every chart has a file in every
+environment, even when it has nothing to set yet. Values that differ per
+environment today:
 
 | Chart | dev | staging | production |
 | --- | --- | --- | --- |
-| `api`, `worker` | 1–5 replicas | 2–10 replicas | 3–20 replicas, PDB 2 |
+| `api`, `worker` | 1–5 replicas, PDB 1 | 2–10 replicas, PDB 1 | 3–20 replicas, PDB 2 |
 | `cloudbeaver` | 5Gi workspace | 5Gi workspace | 10Gi workspace |
 | `karpenter` | CPU limits 8/16/16, consolidate after 2m | 16/32/32, 5m | 32/96/64, 10m |
 | `storage` | volume deleted with its claim | volume retained | volume retained |
 
-Image tags live in the environment files too: `image.tag` for `api`,
-`worker`, and `cloudbeaver`.
-
-Image tags are immutable commit SHAs. The application pipeline in
-`nexus-applications` updates `image.tag` in the DEV files after it publishes an
-image; staging and production advance only by a deliberate change of their tag
-to an already tested SHA.
+Image tags live in the environment files: `image.tag` for `api`, `worker`,
+and `cloudbeaver`. Application tags are immutable commit SHAs. The application
+pipeline in `nexus-applications` updates `image.tag` in the DEV files after it
+publishes an image; staging and production advance only by a deliberate change
+of their tag to an already tested SHA.
 
 ## Bootstrap
 
@@ -176,14 +175,19 @@ Validate a chart locally with Helm:
 helm dependency build charts/applications/api
 helm lint charts/applications/api \
   --values environments/global-values.yaml \
-  --values environments/dev/api-values.yaml
+  --values environments/dev/api-values.yaml \
+  --values charts/applications/api/ci-values.yaml \
+  --set environment=dev
 helm template nexus-api charts/applications/api --namespace nexus \
   --values environments/global-values.yaml \
-  --values environments/dev/api-values.yaml
+  --values environments/dev/api-values.yaml \
+  --values charts/applications/api/ci-values.yaml \
+  --set environment=dev
 ```
 
-Platform charts with required values have a `ci-values.yaml` that stands in
-for the values Terraform injects, so it comes last:
+Charts with required values have a `ci-values.yaml` that stands in for the
+values Terraform injects, so it comes last, together with the environment
+name:
 
 ```bash
 helm lint charts/platform/karpenter \

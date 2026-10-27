@@ -1,18 +1,10 @@
-nameOverride: ""
-
 image:
   repository: nexus/api
 
-replicaCount: 2
 serviceAccount:
   create: true
-  name: api
   automountServiceAccountToken: false
-command: []
 port: 8080
-env: []
-volumes: []
-volumeMounts: []
 
 probes:
   startup:
@@ -38,7 +30,6 @@ probes:
 
 nodeSelector:
   role: general
-tolerations: []
 resources:
   requests:
     cpu: 100m
@@ -52,13 +43,10 @@ service:
   port: 80
 autoscaling:
   enabled: true
-  minReplicas: 2
-  maxReplicas: 10
   cpuUtilization: 70
   memoryUtilization: 80
 disruptionBudget:
   enabled: true
-  minAvailable: 1
 
 observability:
   enabled: true
@@ -66,30 +54,16 @@ observability:
     enabled: true
 
 config:
-  awsRegion: ""
   database:
-    host: ""
-    port: "5432"
-    name: nexus
-    user: nexus
     sslMode: require
     secretName: nexus-database
     passwordKey: password
   valkey:
-    host: ""
-    port: "6379"
-    username: ""
-    cacheName: ""
     iamAuthentication: true
     tls: true
     cacheTTL: 30s
-  sqs:
-    queueURL: ""
 
 externalSecret:
-  enabled: false
   storeName: aws-secrets-manager
   refreshInterval: 1h
-  remoteSecretKey: ""
-  region: ""
   passwordProperty: password

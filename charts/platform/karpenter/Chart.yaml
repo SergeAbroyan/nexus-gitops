@@ -2,4 +2,4 @@ apiVersion: v2
 name: nexus-karpenter-config
 description: Karpenter EC2NodeClass and NodePools for Nexus
 type: application
-version: 0.1.0
+version: 0.2.0

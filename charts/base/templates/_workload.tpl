@@ -197,6 +197,8 @@ spec:
   minAvailable: {{ $workload.disruptionBudget.minAvailable }}
   {{- else if hasKey $workload.disruptionBudget "maxUnavailable" }}
   maxUnavailable: {{ $workload.disruptionBudget.maxUnavailable }}
+  {{- else }}
+  {{- fail "disruptionBudget needs minAvailable or maxUnavailable" }}
   {{- end }}
   selector:
     matchLabels:

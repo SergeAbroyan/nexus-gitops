@@ -1,23 +1,22 @@
-{{- $name := default .Chart.Name .Values.nameOverride -}}
+{{- $config := .Values.config -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ $name }}
+  name: {{ .Chart.Name }}
   labels:
-    {{- include "nexus-base.labels" (dict "root" . "name" $name "partOf" "nexus" "component" "api") | nindent 4 }}
+    {{- include "nexus-base.labels" (dict "root" . "name" .Chart.Name "partOf" "nexus" "component" "api") | nindent 4 }}
 data:
-  AWS_REGION: {{ .Values.config.awsRegion | quote }}
-  DB_HOST: {{ .Values.config.database.host | quote }}
-  DB_PORT: {{ .Values.config.database.port | quote }}
-  DB_NAME: {{ .Values.config.database.name | quote }}
-  DB_USER: {{ .Values.config.database.user | quote }}
-  DB_SSLMODE: {{ .Values.config.database.sslMode | quote }}
-  VALKEY_HOST: {{ .Values.config.valkey.host | quote }}
-  VALKEY_PORT: {{ .Values.config.valkey.port | quote }}
-  VALKEY_USERNAME: {{ .Values.config.valkey.username | quote }}
-  VALKEY_CACHE_NAME: {{ .Values.config.valkey.cacheName | quote }}
-  VALKEY_IAM_AUTH: {{ .Values.config.valkey.iamAuthentication | quote }}
-  VALKEY_TLS: {{ .Values.config.valkey.tls | quote }}
-  VALKEY_CACHE_TTL: {{ .Values.config.valkey.cacheTTL | quote }}
-  SQS_QUEUE_URL: {{ .Values.config.sqs.queueURL | quote }}
-
+  AWS_REGION: {{ required "config.awsRegion is required" $config.awsRegion | quote }}
+  DB_HOST: {{ required "config.database.host is required" $config.database.host | quote }}
+  DB_PORT: {{ required "config.database.port is required" $config.database.port | quote }}
+  DB_NAME: {{ required "config.database.name is required" $config.database.name | quote }}
+  DB_USER: {{ required "config.database.user is required" $config.database.user | quote }}
+  DB_SSLMODE: {{ $config.database.sslMode | quote }}
+  VALKEY_HOST: {{ required "config.valkey.host is required" $config.valkey.host | quote }}
+  VALKEY_PORT: {{ required "config.valkey.port is required" $config.valkey.port | quote }}
+  VALKEY_USERNAME: {{ required "config.valkey.username is required" $config.valkey.username | quote }}
+  VALKEY_CACHE_NAME: {{ required "config.valkey.cacheName is required" $config.valkey.cacheName | quote }}
+  VALKEY_IAM_AUTH: {{ $config.valkey.iamAuthentication | quote }}
+  VALKEY_TLS: {{ $config.valkey.tls | quote }}
+  VALKEY_CACHE_TTL: {{ $config.valkey.cacheTTL | quote }}
+  SQS_QUEUE_URL: {{ required "config.sqs.queueURL is required" $config.sqs.queueURL | quote }}

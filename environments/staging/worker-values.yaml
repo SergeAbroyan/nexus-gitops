@@ -1,6 +1,7 @@
-environment: staging
 image:
   tag: "0.1.0"
 autoscaling:
   minReplicas: 2
   maxReplicas: 10
+disruptionBudget:
+  minAvailable: 1

@@ -14,10 +14,6 @@ service:
   type: ClusterIP
   port: 8978
 
-persistence:
-  storageClassName: nexus-gp3
-  size: 5Gi
-
 resources:
   requests:
     cpu: 250m

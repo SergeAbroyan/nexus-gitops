@@ -1,0 +1,10 @@
+image:
+  registry: 000000000000.dkr.ecr.us-east-1.amazonaws.com
+serviceAccount:
+  name: worker
+config:
+  awsRegion: us-east-1
+  sqs:
+    queueURL: https://sqs.us-east-1.amazonaws.com/000000000000/nexus-test-jobs
+    waitTimeSeconds: "20"
+    visibilityTimeoutSeconds: "60"

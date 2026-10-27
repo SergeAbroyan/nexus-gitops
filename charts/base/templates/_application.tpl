@@ -1,11 +1,8 @@
 {{- define "nexus-base.application" -}}
 {{- $root := .root -}}
 {{- $values := $root.Values -}}
-{{- $name := default $root.Chart.Name $values.nameOverride -}}
-{{- $image := printf "%s:%s" $values.image.repository (required "image.tag is required" $values.image.tag | toString) -}}
-{{- if $values.image.registry -}}
-{{- $image = printf "%s/%s" $values.image.registry $image -}}
-{{- end -}}
+{{- $name := $root.Chart.Name -}}
+{{- $image := printf "%s/%s:%s" (required "image.registry is required" $values.image.registry) $values.image.repository (required "image.tag is required" $values.image.tag | toString) -}}
 {{- $env := list -}}
 {{- if $values.observability.tracing.enabled -}}
 {{- $env = append $env (dict "name" "OTEL_EXPORTER_OTLP_ENDPOINT" "value" (required "observability.tracing.endpoint is required" $values.observability.tracing.endpoint)) -}}

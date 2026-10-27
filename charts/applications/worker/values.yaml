@@ -1,16 +1,10 @@
-nameOverride: ""
-
 image:
   repository: nexus/worker
 
-replicaCount: 2
 serviceAccount:
   create: true
-  name: worker
   automountServiceAccountToken: false
-command: []
 port: 8080
-env: []
 volumes:
   - name: temporary-files
     emptyDir: {}
@@ -56,26 +50,14 @@ resources:
     memory: 512Mi
 service:
   enabled: false
-  type: ClusterIP
-  port: 80
 autoscaling:
   enabled: true
-  minReplicas: 2
-  maxReplicas: 10
   cpuUtilization: 70
   memoryUtilization: 80
 disruptionBudget:
   enabled: true
-  minAvailable: 1
 
 observability:
   enabled: true
   tracing:
     enabled: false
-
-config:
-  awsRegion: ""
-  sqs:
-    queueURL: ""
-    waitTimeSeconds: "20"
-    visibilityTimeoutSeconds: "60"

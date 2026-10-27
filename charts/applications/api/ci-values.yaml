@@ -1,0 +1,25 @@
+image:
+  registry: 000000000000.dkr.ecr.us-east-1.amazonaws.com
+serviceAccount:
+  name: api
+observability:
+  tracing:
+    endpoint: http://otel-traces.monitoring.svc.cluster.local:4317
+    sampleRatio: "0.01"
+config:
+  awsRegion: us-east-1
+  database:
+    host: nexus-test-postgres.example.us-east-1.rds.amazonaws.com
+    port: "5432"
+    name: nexus
+    user: nexus_admin
+  valkey:
+    host: master.nexus-test-valkey.example.use1.cache.amazonaws.com
+    port: "6379"
+    username: nexus-test-api
+    cacheName: nexus-test-valkey
+  sqs:
+    queueURL: https://sqs.us-east-1.amazonaws.com/000000000000/nexus-test-jobs
+externalSecret:
+  remoteSecretKey: arn:aws:secretsmanager:us-east-1:000000000000:secret:rds!db-00000000
+  region: us-east-1

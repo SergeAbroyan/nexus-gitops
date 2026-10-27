@@ -4,7 +4,7 @@ metadata:
   name: nexus
 spec:
   hosts:
-    - {{ .Values.host | quote }}
+    - {{ required "host is required" .Values.host | quote }}
   gateways:
     - {{ .Values.gateway.name }}
   http:
@@ -23,6 +23,4 @@ spec:
     - name: application
       route:
         - destination:
-            host: {{ printf "%s.%s.svc.cluster.local" .Values.nexus.apiService .Values.nexus.namespace }}
-            port:
-              number: {{ .Values.nexus.servicePort }}
+            host: {{ printf "%s.%s.svc.cluster.local" .Values.nexus.apiService (required "nexus.namespace is required" .Values.nexus.namespace) }}

@@ -47,6 +47,10 @@ jobs:
             for environment_directory in environments/*/; do
               environment="$(basename "${environment_directory}")"
               values=(--values environments/global-values.yaml --values "${environment_directory}${component}-values.yaml")
+              if [[ -f "${chart}ci-values.yaml" ]]; then
+                values+=(--values "${chart}ci-values.yaml")
+              fi
+              values+=(--set "environment=${environment}")
               helm lint "${chart}" "${values[@]}"
               helm template "nexus-${component}" "${chart}" --namespace nexus "${values[@]}" > ".rendered/${component}-${environment}.yaml"
             done
