@@ -146,16 +146,18 @@ target group and passes the target group ARN to this chart; the
 
 ## Multiple regions
 
-Nexus runs the same applications in a primary and a standby region. Each
-cluster's Argo CD reconciles this repository with the same environment files;
+An environment can run the same applications in a primary and a standby
+region; `nexus-platform` decides per environment whether the standby is
+deployed. Each cluster's Argo CD reconciles this repository with the same environment files;
 Terraform injects the region-specific endpoints, the regional ECR registry, and
 the database secret. In the standby region the database is a read replica of
 the primary, so the API's External Secrets store reads the password from the
 primary region through `externalSecret.region`, and the API skips schema
 changes while the database is read-only.
 
-DEV runs at least two replicas of the API and worker so that pods spread across
-Availability Zones.
+Staging and production run at least two and three replicas of the API and
+worker so that pods spread across Availability Zones. DEV runs in one region
+and one zone, so it starts with one replica of each.
 
 ## CloudBeaver
 

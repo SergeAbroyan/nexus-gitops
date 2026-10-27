@@ -2,7 +2,7 @@ environment: dev
 image:
   tag: "0.1.0"
 autoscaling:
-  minReplicas: 2
+  minReplicas: 1
   maxReplicas: 5
 probes:
   startup:
