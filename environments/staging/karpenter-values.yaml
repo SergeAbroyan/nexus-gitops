@@ -1,0 +1,9 @@
+nodePools:
+  system:
+    cpuLimit: "16"
+  general:
+    cpuLimit: "32"
+  spot:
+    cpuLimit: "32"
+disruption:
+  consolidateAfter: 5m

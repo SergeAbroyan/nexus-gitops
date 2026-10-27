@@ -15,7 +15,7 @@
   "revisionHistoryLimit" 3
   "strategy" (dict "type" "Recreate")
   "serviceAccount" .Values.serviceAccount
-  "image" (printf "%s:%s" .Values.image.repository .Values.image.tag)
+  "image" (printf "%s:%s" .Values.image.repository (required "image.tag is required" .Values.image.tag | toString))
   "imagePullPolicy" .Values.image.pullPolicy
   "containerName" $name
   "port" .Values.service.port

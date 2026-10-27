@@ -1,6 +1,5 @@
 image:
   repository: dbeaver/cloudbeaver
-  tag: 26.2.1
   pullPolicy: IfNotPresent
 
 replicaCount: 1

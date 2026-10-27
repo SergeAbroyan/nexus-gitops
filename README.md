@@ -22,9 +22,16 @@ charts/
     └── storage/             Encrypted EBS StorageClass
 environments/
 ├── global-values.yaml       Defaults shared by every Nexus service
-├── dev/                     api, worker, and runtime values for DEV
-├── staging/
-└── production/
+├── dev/                     One values file for every chart deployed to DEV
+│   ├── api-values.yaml
+│   ├── worker-values.yaml
+│   ├── runtime-values.yaml
+│   ├── cloudbeaver-values.yaml
+│   ├── ingress-values.yaml
+│   ├── karpenter-values.yaml
+│   └── storage-values.yaml
+├── staging/                 The same seven files
+└── production/              The same seven files
 docs/runbooks/               Alert response procedures
 policies/                    Kyverno workload security policies
 ```
@@ -51,9 +58,25 @@ layers win:
    regional ECR registry, the AWS Region, the PostgreSQL, Valkey, and SQS
    endpoints, and the database secret with its region.
 
-Platform charts use their `values.yaml` plus values that Terraform injects,
-such as the cluster name, Karpenter node role, EBS key, application hostname,
-and load balancer target group.
+Platform charts use three layers: the chart's `values.yaml`, the environment
+file `environments/<environment>/<chart>-values.yaml`, and the values that
+Terraform injects, such as the cluster name, Karpenter node role, EBS key,
+application hostname, and load balancer target group. They do not read
+`global-values.yaml`, which holds conventions for Nexus services only.
+
+Every chart has a file in every environment, even when it has nothing to
+override yet, so each environment folder shows everything that is deployed to
+it. Settings that differ per environment today:
+
+| Chart | dev | staging | production |
+| --- | --- | --- | --- |
+| `api`, `worker` | 1–5 replicas | 2–10 replicas | 3–20 replicas, PDB 2 |
+| `cloudbeaver` | 5Gi workspace | 5Gi workspace | 10Gi workspace |
+| `karpenter` | CPU limits 8/16/16, consolidate after 2m | 16/32/32, 5m | 32/96/64, 10m |
+| `storage` | volume deleted with its claim | volume retained | volume retained |
+
+Image tags live in the environment files too: `image.tag` for `api`,
+`worker`, and `cloudbeaver`.
 
 Image tags are immutable commit SHAs. The application pipeline in
 `nexus-applications` updates `image.tag` in the DEV files after it publishes an
@@ -117,7 +140,13 @@ only the subnets that Terraform tags for the environment's workload
 Availability Zones. Pin `amiAlias` to a tested release before production.
 
 `storage` defines the `nexus-gp3` StorageClass: encrypted with the
-infrastructure EBS key, expandable, and retained when a claim is deleted.
+infrastructure EBS key and expandable. In DEV a volume is deleted when its
+claim is deleted, so volumes do not pile up while DEV changes; staging and
+production retain volumes. Destroying a cluster does not delete claims, so
+volumes can outlive a teardown in every environment; the `nexus-platform`
+README explains the cleanup. Kubernetes cannot change the reclaim policy of an
+existing StorageClass, so changing `reclaimPolicy` later requires deleting and
+recreating the `nexus-gp3` StorageClass.
 
 `cloudbeaver` provides an internal database administration UI with a
 persistent workspace, exposed only through a `ClusterIP` Service.
@@ -134,8 +163,8 @@ procedures live in [`docs/runbooks`](docs/runbooks/README.md).
 ## Validation
 
 `.github/workflows/validate.yaml` runs on pull requests and pushes to `main`.
-It lints the library chart, lints and renders every application chart for
-every environment and every platform chart, validates the rendered resources
+It lints the library chart, lints and renders every application and platform
+chart for every environment, validates the rendered resources
 against Kubernetes 1.35 schemas with kubeconform, and enforces the policies in
 `policies/` with Kyverno. It never connects to AWS or a cluster. Actions are
 pinned to commit SHAs and the kubeconform image to a digest; Dependabot keeps
@@ -154,14 +183,17 @@ helm template nexus-api charts/applications/api --namespace nexus \
 ```
 
 Platform charts with required values have a `ci-values.yaml` that stands in
-for the values Terraform injects:
+for the values Terraform injects, so it comes last:
 
 ```bash
-helm lint charts/platform/karpenter --values charts/platform/karpenter/ci-values.yaml
+helm lint charts/platform/karpenter \
+  --values environments/dev/karpenter-values.yaml \
+  --values charts/platform/karpenter/ci-values.yaml
 ```
 
-The workflow finds charts by convention. An application chart's folder name
-must match its environment files, for example `charts/applications/api` and
-`environments/dev/api-values.yaml`. A new platform chart needs an entry with
-its Argo CD release name and namespace in the workflow, and a `ci-values.yaml`
-if it has required values.
+The workflow finds charts by convention: a chart's folder name matches its
+environment files, for example `charts/platform/karpenter` and
+`environments/dev/karpenter-values.yaml`. A new chart therefore needs a values
+file in every environment. A new platform chart also needs an entry with its
+Argo CD release name and namespace in the workflow, and a `ci-values.yaml` if
+it has required values.

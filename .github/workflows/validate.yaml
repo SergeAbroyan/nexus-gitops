@@ -64,12 +64,15 @@ jobs:
               storage) release=storage-config namespace=kube-system ;;
               *) echo "Add ${name} to this list with its Argo CD release name and namespace." >&2; exit 1 ;;
             esac
-            values="${chart}values.yaml"
-            if [[ -f "${chart}ci-values.yaml" ]]; then
-              values="${chart}ci-values.yaml"
-            fi
-            helm lint "${chart}" --values "${values}"
-            helm template "${release}" "${chart}" --namespace "${namespace}" --values "${values}" > ".rendered/${name}.yaml"
+            for environment_directory in environments/*/; do
+              environment="$(basename "${environment_directory}")"
+              values=(--values "${environment_directory}${name}-values.yaml")
+              if [[ -f "${chart}ci-values.yaml" ]]; then
+                values+=(--values "${chart}ci-values.yaml")
+              fi
+              helm lint "${chart}" "${values[@]}"
+              helm template "${release}" "${chart}" --namespace "${namespace}" "${values[@]}" > ".rendered/${name}-${environment}.yaml"
+            done
           done
 
       - name: Validate Kubernetes schemas
