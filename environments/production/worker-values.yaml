@@ -1,22 +1,8 @@
 environment: production
 image:
   tag: "0.1.0"
-probes:
-  startup:
-    httpGet:
-      path: /livez
-      port: http
-  liveness:
-    httpGet:
-      path: /livez
-      port: http
-  readiness:
-    httpGet:
-      path: /readyz
-      port: http
 autoscaling:
   minReplicas: 3
   maxReplicas: 20
 disruptionBudget:
   minAvailable: 2
-

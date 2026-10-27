@@ -4,4 +4,3 @@ image:
 autoscaling:
   minReplicas: 1
   maxReplicas: 5
-

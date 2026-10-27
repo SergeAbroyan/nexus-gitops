@@ -11,6 +11,31 @@ serviceAccount:
 command: []
 port: 8080
 env: []
+volumes: []
+volumeMounts: []
+
+probes:
+  startup:
+    httpGet:
+      path: /healthz
+      port: http
+    failureThreshold: 30
+    periodSeconds: 2
+  liveness:
+    httpGet:
+      path: /healthz
+      port: http
+    periodSeconds: 10
+    timeoutSeconds: 2
+    failureThreshold: 3
+  readiness:
+    httpGet:
+      path: /readyz
+      port: http
+    periodSeconds: 5
+    timeoutSeconds: 2
+    failureThreshold: 3
+
 nodeSelector:
   role: general
 tolerations: []
@@ -35,6 +60,11 @@ disruptionBudget:
   enabled: true
   minAvailable: 1
 
+observability:
+  enabled: true
+  tracing:
+    enabled: true
+
 config:
   awsRegion: ""
   database:
@@ -58,9 +88,8 @@ config:
 
 externalSecret:
   enabled: false
-  storeName: aws-secretsmanager
+  storeName: aws-secrets-manager
   refreshInterval: 1h
   remoteSecretKey: ""
   region: ""
   passwordProperty: password
-

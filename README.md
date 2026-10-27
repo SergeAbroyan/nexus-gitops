@@ -1,243 +1,167 @@
 # Nexus GitOps
 
-This repository is the deployment source of truth for the Nexus Kubernetes
-platform. Terraform creates AWS infrastructure; Helm describes Kubernetes
-workloads; Argo CD will continuously reconcile this repository into EKS.
+This repository is the source of truth for everything that runs in the Nexus
+Kubernetes clusters. Each environment and region has its own EKS cluster, and
+the Argo CD instance in every cluster reconciles this repository. Terraform in
+`nexus-platform` installs Argo CD and its ApplicationSets and injects the
+values that come from AWS.
 
 ## Repository structure
 
 ```text
-charts/base/                    Shared Helm library for standard resources
-charts/applications/api/        Nexus Go web application and API
-charts/applications/worker/     Nexus Java asynchronous queue worker
-charts/applications/nexus-runtime/ Shared namespace, mesh, alerts, and dashboards
-charts/platform/karpenter/      Node provisioning configuration
-charts/platform/storage/        Encrypted EBS StorageClass
-charts/platform/ingress/        Internal Istio gateway routing
-charts/platform/cloudbeaver/    Internal database administration UI
-environments/global-values.yaml Settings shared by every environment
-environments/<environment>/     One state file per deployable Nexus component
+charts/
+├── base/                    Helm library: application, workload, namespace, and volume claim templates
+├── applications/
+│   ├── api/                 Go web page and REST API
+│   ├── worker/              Java SQS worker
+│   └── runtime/             Nexus namespace, mesh policy, alerts, and dashboards
+└── platform/
+    ├── cloudbeaver/         Internal database administration UI
+    ├── ingress/             Istio gateway, route, and load balancer binding
+    ├── karpenter/           EC2 node class and node pools
+    └── storage/             Encrypted EBS StorageClass
+environments/
+├── global-values.yaml       Defaults shared by every Nexus service
+├── dev/                     api, worker, and runtime values for DEV
+├── staging/
+└── production/
+docs/runbooks/               Alert response procedures
+policies/                    Kyverno workload security policies
 ```
 
-Every deployable project-owned Helm chart lives below `charts/`. This repository
-does not contain Argo CD `Application` or `ApplicationSet` resources.
+The repository contains no Argo CD `Application` or `ApplicationSet`
+resources; they live in the `platform` module of `nexus-platform`, so service
+registration happens in one place.
 
-`charts/base` is a Helm library chart, not a deployable application. It owns the
-reusable templates for restricted namespaces, standard stateless workloads, and
-persistent volume claims. Application charts keep only their domain-specific
-configuration and call the library through a local, versioned dependency. The
-Karpenter and storage charts remain independent because their custom resources
-do not share the normal Deployment/Service lifecycle.
+## How values are combined
 
-## GitOps bootstrap
+Argo CD renders `api`, `worker`, and `runtime` from four layers, where later
+layers win:
 
-In each region, Terraform installs the pinned Argo CD Helm release after
-creating EKS. A second Helm release then seeds one restricted AppProject and
-three focused ApplicationSets:
+1. The chart's `values.yaml` holds the service defaults: image repository,
+   port, health checks, resources, placement, autoscaling, and its
+   configuration interface.
+2. `environments/global-values.yaml` holds conventions shared by every Nexus
+   service: security contexts, rollout strategy, zone spreading, autoscaling
+   behavior, and the tracing endpoint.
+3. `environments/<environment>/<chart>-values.yaml` holds the environment's
+   deployment state: environment name, image tag, replica range, and
+   disruption budget.
+4. Terraform injects what comes from AWS for the cluster's region: the
+   regional ECR registry, the AWS Region, the PostgreSQL, Valkey, and SQS
+   endpoints, and the database secret with its region.
 
-- external platform charts such as Istio and Karpenter;
-- local platform and operations charts from this repository;
-- Nexus application environments.
+Platform charts use their `values.yaml` plus values that Terraform injects,
+such as the cluster name, Karpenter node role, EBS key, application hostname,
+and load balancer target group.
 
-The ownership chain is:
+Image tags are immutable commit SHAs. The application pipeline in
+`nexus-applications` updates `image.tag` in the DEV files after it publishes an
+image; staging and production advance only by a deliberate change of their tag
+to an already tested SHA.
 
-```text
-Terraform/Terragrunt -> Argo CD -> ApplicationSets -> Helm charts
-```
+## Bootstrap
 
-ApplicationSet definitions and infrastructure-derived Helm values live in the
-Terraform `platform` module of `nexus-platform`. This keeps service registration in one location and
-avoids duplicating pointer files in this repository.
+In each cluster, Terraform installs the pinned Argo CD release and then seeds
+one restricted AppProject and three ApplicationSets:
 
-External Secrets uses the `external-secrets` service account. Its name and
-namespace exactly match the EKS Pod Identity association created by Terraform.
+- external platform charts such as Istio, Karpenter, External Secrets, the AWS
+  Load Balancer Controller, and the monitoring stack;
+- the platform charts in `charts/platform`;
+- the Nexus applications in `charts/applications`.
 
-The external-platform ApplicationSet installs the essential cluster controllers:
+Every cluster follows `main`. Its environment decides which environment files
+apply, and Terraform injects its region. Failed syncs retry with backoff, so
+Applications that start before another Application has installed their CRDs
+still converge on a new cluster.
 
-- Metrics Server supplies resource metrics to the Horizontal Pod Autoscalers.
-- AWS Load Balancer Controller registers the Istio gateway pods in the
-  Terraform-managed load balancer target group.
-- Karpenter CRDs are managed separately from the Karpenter controller so they
-  can be upgraded safely.
+## Applications
 
-Terraform injects the EKS cluster name, AWS region, VPC ID, Karpenter
-interruption queue, node IAM role, KMS key, and managed-service endpoints into
-the generated Argo CD Applications.
+`api` serves the web page and REST API. It reads its PostgreSQL password
+through an `ExternalSecret` and a `SecretStore` named `aws-secrets-manager`
+that use the External Secrets controller's EKS Pod Identity, so no credentials
+are stored anywhere. In a standby region the database is a read replica of the
+primary, so the store reads the secret from the primary region through
+`externalSecret.region`, and the API skips schema changes while the database is
+read-only. It sends traces to the OpenTelemetry gateway.
 
-## Karpenter capacity
+`worker` runs on Spot capacity and mounts an `emptyDir` at `/tmp`, because
+Spring Boot's embedded Tomcat needs a writable temporary directory while the
+root filesystem stays read-only.
 
-The `charts/platform/karpenter` chart defines one hardened EC2 node class and three
-capacity pools:
+Both charts call `nexus-base.application`, so they share the same non-root,
+read-only container security, health checks, resource limits, autoscaling,
+disruption budgets, zone spreading, and Pod Identity service accounts. DEV runs
+one replica of each; staging and production run at least two and three.
 
-- `system` uses On-Demand capacity for platform controllers.
-- `general` uses On-Demand capacity for the Go API.
-- `spot` is tainted and accepts only explicitly tolerant workloads such as the
-  asynchronous worker.
+`runtime` owns the `nexus` namespace with sidecar injection and the Restricted
+Pod Security Standard, a `STRICT` mutual TLS `PeerAuthentication`, a
+`PodMonitor`, the Prometheus alerts, and the Grafana dashboards. Istio merges
+each application's `/metrics` into port `15020`, so Prometheus scrapes it
+without weakening mutual TLS. Alert thresholds are chart values, and every
+alert links to its runbook.
 
-Karpenter discovers private subnets and the EKS node security group through the
-`karpenter.sh/discovery` tag created by Terraform. The default AL2023 alias tracks
-the latest EKS-optimized image for DEV. Pin `amiAlias` to a tested release before
-promoting the configuration to production.
+## Platform charts
 
-## Nexus application delivery
+`ingress` owns the Istio `Gateway` on port 8443, the Nexus route, and a
+`TargetGroupBinding`. CloudFront terminates TLS for the public hostname and
+reaches the region's internal Network Load Balancer through a VPC origin;
+Terraform creates that load balancer and passes its target group ARN to this
+chart, and the binding registers the gateway pods. The gateway namespace
+enforces the Restricted Pod Security Standard.
 
-The Nexus ApplicationSet generates three Argo CD applications for the environment:
-runtime, Go API and Java worker. Argo CD combines three value layers:
+`karpenter` defines one EC2 node class and three node pools: On-Demand
+`system` for platform controllers, On-Demand `general` for the API, and a
+tainted `spot` pool for tolerant workloads such as the worker. Karpenter uses
+only the subnets that Terraform tags for the environment's workload
+Availability Zones. Pin `amiAlias` to a tested release before production.
 
-1. Each chart's `values.yaml` defines service-specific defaults and its public interface.
-2. `environments/global-values.yaml` and the component file under
-   `environments/<environment>/` contain versioned deployment state.
-3. Terraform injects non-secret AWS outputs such as service endpoints, the ECR
-   registry, and the RDS Secrets Manager ARN.
+`storage` defines the `nexus-gp3` StorageClass: encrypted with the
+infrastructure EBS key, expandable, and retained when a claim is deleted.
 
-External Secrets reads the password from that ARN inside EKS. The password is
-never placed in Terraform state, Argo CD parameters, or Git.
+`cloudbeaver` provides an internal database administration UI with a
+persistent workspace, exposed only through a `ClusterIP` Service.
 
-## Istio service mesh
+## Observability
 
-The external-platform ApplicationSet installs Istio base, Istio CNI, and Istiod
-at the same pinned version. Istio CNI removes the need for privileged init
-containers in application pods. The `nexus-runtime` chart owns namespace labels,
-enables automatic sidecar injection, and enforces the Restricted Pod Security
-Standard.
+Prometheus, Grafana, Loki, Tempo, and OpenTelemetry collectors come from the
+external platform charts. The `Nexus Overview` dashboard shows availability,
+request rate, CPU, memory, the Istio 5xx ratio, and 95th-percentile latency;
+`Nexus AWS Overview` shows the CloudWatch metrics of the region's PostgreSQL,
+Valkey, and SQS. Grafana discovers both dashboards automatically. Response
+procedures live in [`docs/runbooks`](docs/runbooks/README.md).
 
-The `nexus-runtime` chart creates a namespace-wide `PeerAuthentication` policy in
-`STRICT` mode, so mesh traffic must use mutual TLS. External AWS service traffic
-remains allowed until explicit ServiceEntry policies are introduced.
-
-## Application observability
-
-The `nexus-runtime` chart creates a PodMonitor for the API and worker. Istio
-merges each application's `/metrics` endpoint into its monitoring endpoint, so
-Prometheus scrapes port `15020` without weakening the namespace's strict mTLS
-policy. The worker therefore remains without a Kubernetes Service.
-
-The runtime chart also creates Prometheus alerts for an unavailable scrape target, an
-elevated Istio 5xx response rate, and sustained high 95th-percentile request
-latency. The alert durations and thresholds are chart values, so each
-environment can tune them without modifying the templates. Terraform configures
-the Prometheus Operator selectors to discover PodMonitor and PrometheusRule
-resources in the Nexus namespace.
-
-The global values file supplies the Go API with the internal OpenTelemetry
-trace-gateway endpoint and the current deployment environment. API spans are
-sent to the gateway, then batched and forwarded to Tempo. The Java worker
-exposes Prometheus metrics through Spring Boot Actuator; distributed tracing can
-be added later when the example needs cross-language trace propagation.
-
-The version-controlled `Nexus Overview` Grafana dashboard shows target
-availability, application request rate, CPU usage, memory working set, Istio
-5xx ratio, and 95th-percentile request latency by destination service. Grafana's
-sidecar discovers the dashboard ConfigMap across namespaces, so no dashboard
-needs to be imported manually.
-
-Operational response procedures live in [`docs/runbooks`](docs/runbooks/README.md).
-Every Prometheus application alert includes a `runbook_url` annotation, while
-the runbook index maps AWS CloudWatch alarm names to their response procedure.
-
-The `charts/platform/ingress` chart owns the shared Istio `Gateway`, the Nexus
-route, and a `TargetGroupBinding`. All application traffic goes to the Go API,
-which serves both the web page and the REST endpoints. CloudFront terminates
-TLS for the public hostname and reaches each region's internal Network Load
-Balancer through a VPC origin. Terraform creates that load balancer and its
-target group and passes the target group ARN to this chart; the
-`TargetGroupBinding` registers the gateway pods, which listen for HTTP on port
-8443. Grafana and CloudBeaver remain unexposed.
-
-## Multiple regions
-
-An environment can run the same applications in a primary and a standby
-region; `nexus-platform` decides per environment whether the standby is
-deployed. Each cluster's Argo CD reconciles this repository with the same environment files;
-Terraform injects the region-specific endpoints, the regional ECR registry, and
-the database secret. In the standby region the database is a read replica of
-the primary, so the API's External Secrets store reads the password from the
-primary region through `externalSecret.region`, and the API skips schema
-changes while the database is read-only.
-
-Staging and production run at least two and three replicas of the API and
-worker so that pods spread across Availability Zones. DEV runs in one region
-and one zone, so it starts with one replica of each.
-
-## CloudBeaver
-
-The `charts/platform/cloudbeaver` chart provides an internal database administration
-UI for development and operations. It uses a persistent workspace, runs as the
-non-root UID published by CloudBeaver, and is exposed only by a `ClusterIP`
-Service. Database connections and external ingress are intentionally configured
-later so credentials and public access are not introduced implicitly.
-
-Its workspace uses the `nexus-gp3` StorageClass from `charts/platform/storage`. Volumes
-are encrypted with the infrastructure-managed EBS KMS key, expand in place, and
-are retained if the claim is deleted.
-
-## Application charts
-
-The Go API and Java worker are separate deployable charts. They call the same
-base workload template, so both retain consistent:
-
-- non-root and read-only container security
-- startup, liveness, and readiness probes
-- CPU and memory requests and limits
-- horizontal pod autoscaling
-- pod disruption budgets
-- topology spreading across availability zones
-- service accounts compatible with EKS Pod Identity
-
-The Java worker also mounts an `emptyDir` volume at `/tmp`, because Spring
-Boot's embedded Tomcat needs a writable temporary directory while the root
-filesystem stays read-only.
-
-Validate or render the chart locally:
-
-```bash
-make dependencies
-make lint
-make template
-make lint-all
-```
-
-## Continuous validation
+## Validation
 
 `.github/workflows/validate.yaml` runs on pull requests and pushes to `main`.
-It uses a pinned Helm version to lint every project-owned chart and render all
-application environments plus every platform chart. Kubeconform validates the
-rendered built-in resources against Kubernetes 1.35 schemas, while Kyverno
-enforces the repository's workload security policies. Custom resources are
-still rendered and evaluated by policy, but schema validation skips them when
-their external CRD schema is unavailable. The workflow has only read access
-and never connects to AWS or the Kubernetes cluster. Actions are pinned to
-commit SHAs and the kubeconform image to a digest; Dependabot opens grouped
-weekly updates for the action pins.
+It lints the library chart, lints and renders every application chart for
+every environment and every platform chart, validates the rendered resources
+against Kubernetes 1.35 schemas with kubeconform, and enforces the policies in
+`policies/` with Kyverno. It never connects to AWS or a cluster. Actions are
+pinned to commit SHAs and the kubeconform image to a digest; Dependabot keeps
+the pins current.
 
-`ENVIRONMENT` selects the thin environment override and defaults to `dev`:
+Validate a chart locally with Helm:
 
 ```bash
-make template ENVIRONMENT=staging
-make template ENVIRONMENT=production
+helm dependency build charts/applications/api
+helm lint charts/applications/api \
+  --values environments/global-values.yaml \
+  --values environments/dev/api-values.yaml
+helm template nexus-api charts/applications/api --namespace nexus \
+  --values environments/global-values.yaml \
+  --values environments/dev/api-values.yaml
 ```
 
-Cross-service settings live in `environments/global-values.yaml`. Each environment
-then has a small values file for runtime, API and worker. Chart values
-contain reusable service defaults only; environment files are the desired
-deployment state.
+Platform charts with required values have a `ci-values.yaml` that stands in
+for the values Terraform injects:
 
-Image tags must be immutable. Each component environment file explicitly starts
-at `0.1.0`. The application pipeline updates the corresponding DEV file to a
-commit SHA after publishing that service image. Staging and production advance
-only through deliberate GitOps promotion of an already tested SHA.
+```bash
+helm lint charts/platform/karpenter --values charts/platform/karpenter/ci-values.yaml
+```
 
-Environment files intentionally omit infrastructure-generated AWS endpoints.
-Terraform injects the current RDS, Valkey, SQS, and ECR outputs into each Argo
-CD application. External Secrets supplies credentials without putting them in
-Git.
-
-## Database credentials
-
-The API chart synchronizes the RDS-managed password from AWS Secrets
-Manager. Terraform passes the environment's secret ARN through the Nexus
-ApplicationSet; the ARN is not hard-coded in an environment values file.
-
-The External Secrets controller uses EKS Pod Identity. The `SecretStore`
-therefore contains no static credentials, IAM role annotation, or authentication
-block. It creates the `nexus-database` Kubernetes Secret consumed by the API.
+The workflow finds charts by convention. An application chart's folder name
+must match its environment files, for example `charts/applications/api` and
+`environments/dev/api-values.yaml`. A new platform chart needs an entry with
+its Argo CD release name and namespace in the workflow, and a `ci-values.yaml`
+if it has required values.

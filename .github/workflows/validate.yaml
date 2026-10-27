@@ -26,11 +26,51 @@ jobs:
         with:
           version: v3.22.0
 
-      - name: Lint every chart
-        run: make lint-all
+      - name: Build chart dependencies
+        run: |
+          set -euo pipefail
+          for chart in charts/*/*/; do
+            if [[ -f "${chart}Chart.lock" ]]; then
+              helm dependency build --skip-refresh "${chart}"
+            fi
+          done
 
-      - name: Render manifests for validation
-        run: make render-all
+      - name: Lint the library chart
+        run: helm lint charts/base
+
+      - name: Lint and render application charts
+        run: |
+          set -euo pipefail
+          mkdir -p .rendered
+          for chart in charts/applications/*/; do
+            component="$(basename "${chart}")"
+            for environment_directory in environments/*/; do
+              environment="$(basename "${environment_directory}")"
+              values=(--values environments/global-values.yaml --values "${environment_directory}${component}-values.yaml")
+              helm lint "${chart}" "${values[@]}"
+              helm template "nexus-${component}" "${chart}" --namespace nexus "${values[@]}" > ".rendered/${component}-${environment}.yaml"
+            done
+          done
+
+      - name: Lint and render platform charts
+        run: |
+          set -euo pipefail
+          for chart in charts/platform/*/; do
+            name="$(basename "${chart}")"
+            case "${name}" in
+              cloudbeaver) release=cloudbeaver namespace=cloudbeaver ;;
+              ingress) release=ingress-config namespace=istio-ingress ;;
+              karpenter) release=karpenter-config namespace=kube-system ;;
+              storage) release=storage-config namespace=kube-system ;;
+              *) echo "Add ${name} to this list with its Argo CD release name and namespace." >&2; exit 1 ;;
+            esac
+            values="${chart}values.yaml"
+            if [[ -f "${chart}ci-values.yaml" ]]; then
+              values="${chart}ci-values.yaml"
+            fi
+            helm lint "${chart}" --values "${values}"
+            helm template "${release}" "${chart}" --namespace "${namespace}" --values "${values}" > ".rendered/${name}.yaml"
+          done
 
       - name: Validate Kubernetes schemas
         uses: docker://ghcr.io/yannh/kubeconform:v0.7.0@sha256:85dbef6b4b312b99133decc9c6fc9495e9fc5f92293d4ff3b7e1b30f5611823c

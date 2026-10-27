@@ -6,4 +6,3 @@ autoscaling:
   maxReplicas: 20
 disruptionBudget:
   minAvailable: 2
-

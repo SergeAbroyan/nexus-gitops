@@ -4,17 +4,3 @@ image:
 autoscaling:
   minReplicas: 1
   maxReplicas: 5
-probes:
-  startup:
-    httpGet:
-      path: /livez
-      port: http
-  liveness:
-    httpGet:
-      path: /livez
-      port: http
-  readiness:
-    httpGet:
-      path: /readyz
-      port: http
-

@@ -11,6 +11,35 @@ serviceAccount:
 command: []
 port: 8080
 env: []
+volumes:
+  - name: temporary-files
+    emptyDir: {}
+volumeMounts:
+  - name: temporary-files
+    mountPath: /tmp
+
+probes:
+  startup:
+    httpGet:
+      path: /livez
+      port: http
+    failureThreshold: 30
+    periodSeconds: 2
+  liveness:
+    httpGet:
+      path: /livez
+      port: http
+    periodSeconds: 10
+    timeoutSeconds: 2
+    failureThreshold: 3
+  readiness:
+    httpGet:
+      path: /readyz
+      port: http
+    periodSeconds: 5
+    timeoutSeconds: 2
+    failureThreshold: 3
+
 nodeSelector:
   role: spot
 tolerations:
@@ -39,10 +68,14 @@ disruptionBudget:
   enabled: true
   minAvailable: 1
 
+observability:
+  enabled: true
+  tracing:
+    enabled: false
+
 config:
   awsRegion: ""
   sqs:
     queueURL: ""
     waitTimeSeconds: "20"
     visibilityTimeoutSeconds: "60"
-
