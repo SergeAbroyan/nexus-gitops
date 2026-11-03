@@ -1,8 +1,14 @@
 nodePools:
   system:
     cpuLimit: "8"
+    capacityTypes:
+      - spot
+      - on-demand
   general:
     cpuLimit: "16"
+    capacityTypes:
+      - spot
+      - on-demand
   spot:
     cpuLimit: "16"
 disruption:

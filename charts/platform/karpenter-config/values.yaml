@@ -7,10 +7,16 @@ nodeClass:
 nodePools:
   system:
     weight: 100
+    capacityTypes:
+      - on-demand
   general:
     weight: 50
+    capacityTypes:
+      - on-demand
   spot:
     weight: 25
+    capacityTypes:
+      - spot
 
 disruption:
   consolidationPolicy: WhenEmptyOrUnderutilized

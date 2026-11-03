@@ -140,7 +140,7 @@ Values that differ per environment today:
 | `api`, `worker` | 1–5 replicas, PDB 1 | 2–10 replicas, PDB 1 | 3–20 replicas, PDB 2 |
 | `cloudbeaver` | 5Gi workspace | 5Gi workspace | 10Gi workspace |
 | `karpenter` | 1 controller replica | 2 | 2 |
-| `karpenter-config` | CPU limits 8/16/16, consolidate after 2m | 16/32/32, 5m | 32/96/64, 10m |
+| `karpenter-config` | Spot first in every pool, CPU limits 8/16/16, consolidate after 2m | On-Demand `system` and `general`, 16/32/32, 5m | On-Demand `system` and `general`, 32/96/64, 10m |
 | `storage-config` | volume deleted with its claim | volume retained | volume retained |
 
 Image tags live in the environment files: `image.tag` for `api`, `worker`,
@@ -199,11 +199,17 @@ Terraform creates that load balancer and passes its target group ARN as a
 cluster fact, and the binding registers the gateway pods. The gateway
 namespace enforces the Restricted Pod Security Standard.
 
-`karpenter-config` defines one EC2 node class and three node pools: On-Demand
-`system` for platform controllers, On-Demand `general` for the API, and a
-tainted `spot` pool for tolerant workloads such as the worker. Karpenter uses
-only the subnets that Terraform tags for the environment's workload
-Availability Zones. Pin `amiAlias` to a tested release before production.
+`karpenter-config` defines one EC2 node class and three node pools: `system`
+for platform controllers, `general` for the API and the monitoring stack, and a
+tainted `spot` pool for tolerant workloads such as the worker. Each pool lists
+the capacity types it may use in `capacityTypes`. Staging and production run
+`system` and `general` On-Demand; DEV allows Spot and On-Demand, so Karpenter
+picks the cheaper Spot capacity and falls back to On-Demand only when Spot is
+unavailable. The `spot` pool is Spot everywhere. Karpenter receives AWS
+interruption notices through the queue Terraform creates, so it replaces a Spot
+node before AWS reclaims it. Karpenter uses only the subnets that Terraform tags
+for the environment's workload Availability Zones. Pin `amiAlias` to a tested
+release before production.
 
 `storage-config` defines the `nexus-gp3` StorageClass: encrypted with the
 infrastructure EBS key and expandable. In DEV a volume is deleted when its
