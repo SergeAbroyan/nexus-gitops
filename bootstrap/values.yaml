@@ -17,12 +17,18 @@ syncPolicy:
 storageClassName: nexus-gp3
 
 ingressGateway:
+  name: nexus-ingress
   selector:
     istio: ingress
 
 tracing:
   port: 4317
   samplingPercentage: 1
+
+alerting:
+  slack:
+    enabled: false
+    channel: "#nexus-alerts"
 
 addons:
   istio-base:
@@ -70,6 +76,17 @@ addons:
     repoURL: https://aws.github.io/eks-charts
     chart: aws-load-balancer-controller
     version: 3.6.2
+  kyverno:
+    wave: 2
+    repoURL: https://kyverno.github.io/kyverno
+    chart: kyverno
+    version: 3.9.2
+  argo-rollouts:
+    wave: 2
+    namespace: argo-rollouts
+    repoURL: https://argoproj.github.io/argo-helm
+    chart: argo-rollouts
+    version: 2.43.8
   external-secrets:
     wave: 2
     repoURL: https://charts.external-secrets.io
@@ -81,6 +98,12 @@ addons:
     repoURL: https://kubernetes-sigs.github.io/metrics-server
     chart: metrics-server
     version: 3.14.0
+  prometheus-operator-crds:
+    wave: 1
+    namespace: monitoring
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: prometheus-operator-crds
+    version: 32.0.2
   monitoring:
     wave: 4
     repoURL: https://prometheus-community.github.io/helm-charts
@@ -110,12 +133,33 @@ addons:
     repoURL: ghcr.io/open-telemetry/opentelemetry-helm-charts
     chart: opentelemetry-collector
     version: 0.177.0
+  sloth:
+    wave: 3
+    namespace: monitoring
+    repoURL: https://slok.github.io/sloth
+    chart: sloth
+    version: 0.16.0
+  pyroscope:
+    wave: 4
+    namespace: monitoring
+    repoURL: https://grafana.github.io/helm-charts
+    chart: pyroscope
+    version: 2.4.2
+  opencost:
+    wave: 4
+    namespace: opencost
+    repoURL: https://opencost.github.io/opencost-helm-chart
+    chart: opencost
+    version: 2.5.33
 
 platform:
   karpenter-config:
     wave: 3
     namespace: kube-system
   storage-config:
+    wave: 3
+    namespace: kube-system
+  policies:
     wave: 3
     namespace: kube-system
   ingress-config:
@@ -129,5 +173,14 @@ applications:
     wave: 4
   api:
     wave: 4
+    ignoreDifferences:
+      - group: networking.istio.io
+        kind: VirtualService
+        jqPathExpressions:
+          - .spec.http[].route[].weight
+      - group: ""
+        kind: Service
+        jqPathExpressions:
+          - .spec.selector["rollouts-pod-template-hash"]
   worker:
     wave: 4

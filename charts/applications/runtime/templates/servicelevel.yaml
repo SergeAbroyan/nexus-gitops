@@ -1,0 +1,54 @@
+{{- if .Values.observability.enabled }}
+{{- $requests := printf "reporter=\"destination\", destination_service_namespace=\"%s\", destination_service_name=~\"nexus-api(-canary)?\"" .Release.Namespace }}
+{{- $window := "[{{.window}}]" }}
+{{- $threshold := .Values.slo.latency.thresholdMilliseconds | toString }}
+apiVersion: sloth.slok.dev/v1
+kind: PrometheusServiceLevel
+metadata:
+  name: nexus-api
+  labels:
+    {{- include "nexus-runtime.labels" . | nindent 4 }}
+spec:
+  service: nexus-api
+  labels:
+    environment: {{ required "environment is required" .Values.environment | quote }}
+  slos:
+    - name: requests-availability
+      objective: {{ .Values.slo.availability.objective }}
+      description: API requests that finish without a server error.
+      sli:
+        events:
+          errorQuery: sum(rate(istio_requests_total{ {{- $requests }}, response_code=~"5.."}{{ $window }}))
+          totalQuery: sum(rate(istio_requests_total{ {{- $requests }}}{{ $window }}))
+      alerting:
+        name: NexusApiAvailabilityBudgetBurn
+        annotations:
+          summary: The Nexus API is using its availability error budget too fast.
+          runbook_url: https://github.com/SergeAbroyan/nexus-gitops/blob/main/docs/runbooks/application-alerts.md#nexusapiavailabilitybudgetburn
+        pageAlert:
+          labels:
+            severity: critical
+        ticketAlert:
+          labels:
+            severity: warning
+    - name: requests-latency
+      objective: {{ .Values.slo.latency.objective }}
+      description: API requests that finish within {{ $threshold }} milliseconds.
+      sli:
+        events:
+          errorQuery: >-
+            sum(rate(istio_request_duration_milliseconds_count{ {{- $requests }}}{{ $window }}))
+            - sum(rate(istio_request_duration_milliseconds_bucket{ {{- $requests }}, le="{{ $threshold }}"}{{ $window }}))
+          totalQuery: sum(rate(istio_request_duration_milliseconds_count{ {{- $requests }}}{{ $window }}))
+      alerting:
+        name: NexusApiLatencyBudgetBurn
+        annotations:
+          summary: The Nexus API is using its latency error budget too fast.
+          runbook_url: https://github.com/SergeAbroyan/nexus-gitops/blob/main/docs/runbooks/application-alerts.md#nexusapilatencybudgetburn
+        pageAlert:
+          labels:
+            severity: critical
+        ticketAlert:
+          labels:
+            severity: warning
+{{- end }}

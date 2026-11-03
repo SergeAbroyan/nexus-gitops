@@ -1,0 +1,17 @@
+pyroscope:
+  replicaCount: 1
+  nodeSelector:
+    role: general
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  persistence:
+    enabled: true
+    size: 10Gi
+
+alloy:
+  enabled: false

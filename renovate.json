@@ -1,0 +1,69 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", "helpers:pinGitHubActionDigests"],
+  "schedule": ["before 6am on monday"],
+  "prConcurrentLimit": 5,
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Helm charts from HTTPS repositories in the add-on catalog",
+      "managerFilePatterns": ["/^bootstrap/values\\.yaml$/"],
+      "matchStrings": [
+        "repoURL: (?<registryUrl>https://\\S+)\\n\\s+chart: (?<depName>\\S+)\\n\\s+version: (?<currentValue>\\S+)"
+      ],
+      "datasourceTemplate": "helm"
+    },
+    {
+      "customType": "regex",
+      "description": "Helm charts from OCI registries in the add-on catalog",
+      "managerFilePatterns": ["/^bootstrap/values\\.yaml$/"],
+      "matchStrings": [
+        "repoURL: (?<registry>[a-z0-9.-]+\\.[a-z]+/\\S+)\\n\\s+chart: (?<chart>\\S+)\\n\\s+version: (?<currentValue>\\S+)"
+      ],
+      "depNameTemplate": "{{{registry}}}/{{{chart}}}",
+      "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "CloudBeaver image tag in every environment",
+      "managerFilePatterns": ["/^environments/[^/]+/cloudbeaver-values\\.yaml$/"],
+      "matchStrings": ["image:\\n\\s+tag: \"?(?<currentValue>[^\"\\s]+)\"?"],
+      "depNameTemplate": "dbeaver/cloudbeaver",
+      "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "Helm version installed in workflows",
+      "managerFilePatterns": ["/^\\.github/workflows/.+\\.yaml$/"],
+      "matchStrings": ["uses: azure/setup-helm@\\S+ # \\S+\\n\\s+with:\\n\\s+version: (?<currentValue>\\S+)"],
+      "depNameTemplate": "helm/helm",
+      "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "description": "Kyverno CLI version installed in workflows",
+      "managerFilePatterns": ["/^\\.github/workflows/.+\\.yaml$/"],
+      "matchStrings": ["uses: kyverno/action-install-cli@\\S+ # \\S+\\n\\s+with:\\n\\s+release: (?<currentValue>\\S+)"],
+      "depNameTemplate": "kyverno/kyverno",
+      "datasourceTemplate": "github-releases"
+    }
+  ],
+  "packageRules": [
+    {
+      "matchPackageNames": ["base", "cni", "istiod", "gateway"],
+      "groupName": "Istio"
+    },
+    {
+      "matchPackageNames": ["public.ecr.aws/karpenter/**"],
+      "groupName": "Karpenter"
+    },
+    {
+      "matchPackageNames": ["dbeaver/cloudbeaver"],
+      "groupName": "CloudBeaver"
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "groupName": "GitHub Actions"
+    }
+  ]
+}

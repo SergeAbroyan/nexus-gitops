@@ -6,6 +6,14 @@ spec:
   validationActions:
     - Deny
   matchConstraints:
+    {{- with .Values.workloadSecurity.namespaces }}
+    namespaceSelector:
+      matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: In
+          values:
+            {{- toYaml . | nindent 12 }}
+    {{- end }}
     resourceRules:
       - apiGroups:
           - apps
@@ -18,6 +26,15 @@ spec:
           - deployments
           - statefulsets
           - daemonsets
+      - apiGroups:
+          - argoproj.io
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - rollouts
   validations:
     - message: Workloads must run as non-root.
       expression: >-

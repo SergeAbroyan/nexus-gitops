@@ -21,8 +21,11 @@ the evidence, mitigate customer impact, and only then make a durable change.
 | Alert | Severity | Runbook |
 | --- | --- | --- |
 | `NexusTargetDown` | Critical | [Application alerts](application-alerts.md#nexustargetdown) |
-| `NexusHighServerErrorRate` | Warning | [Application alerts](application-alerts.md#nexushighservererrorrate) |
-| `NexusHighRequestLatency` | Warning | [Application alerts](application-alerts.md#nexushighrequestlatency) |
+| `NexusApiAvailabilityBudgetBurn` | Critical or warning | [Application alerts](application-alerts.md#nexusapiavailabilitybudgetburn) |
+| `NexusApiLatencyBudgetBurn` | Critical or warning | [Application alerts](application-alerts.md#nexusapilatencybudgetburn) |
+| `ArgoCDApplicationDegraded` | Warning | [Platform alerts](platform-alerts.md#argocdapplicationdegraded) |
+| `ArgoCDApplicationOutOfSync` | Warning | [Platform alerts](platform-alerts.md#argocdapplicationoutofsync) |
+| `ArgoCDSyncFailed` | Warning | [Platform alerts](platform-alerts.md#argocdsyncfailed) |
 | `*-rds-high-cpu` | CloudWatch | [AWS dependency alerts](aws-dependency-alerts.md#rds-high-cpu) |
 | `*-rds-low-free-storage` | CloudWatch | [AWS dependency alerts](aws-dependency-alerts.md#rds-low-free-storage) |
 | `*-valkey-*-high-memory` | CloudWatch | [AWS dependency alerts](aws-dependency-alerts.md#valkey-high-memory) |

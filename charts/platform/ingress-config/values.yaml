@@ -1,5 +1,0 @@
-gateway:
-  name: nexus-ingress
-
-nexus:
-  apiService: nexus-api

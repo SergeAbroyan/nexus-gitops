@@ -33,39 +33,45 @@ the metrics endpoint is unavailable, or Prometheus cannot reach it.
    Karpenter and pending-pod events first.
 5. Resolve after the target is healthy and Prometheus has scraped it again.
 
-## NexusHighServerErrorRate
+## NexusApiAvailabilityBudgetBurn
 
-More than the configured proportion of requests returns an HTTP 5xx response.
+The API is returning HTTP 5xx responses fast enough to exhaust its 30-day
+availability error budget early. Sloth generates the alert from the
+`requests-availability` objective in `charts/applications/runtime`: the
+critical page fires on a fast burn over the last hour, the warning ticket on a
+slow burn over several hours.
 
-1. In `Nexus Overview`, identify when the error rate increased and which
-   destination service receives the failures.
-2. Correlate that interval in Loki and Tempo. Start with application logs, then
-   follow trace IDs through API, PostgreSQL, Valkey, and SQS spans.
-3. Inspect workload status and recent deployment history:
+1. In `Nexus Overview`, identify when errors started and whether they come from
+   the stable or the canary service (`nexus-api` or `nexus-api-canary`).
+2. Check whether a canary release is in progress. Argo Rollouts aborts a canary
+   whose success rate drops below the analysis threshold, but a release that
+   was already promoted stays:
 
    ```bash
-   kubectl get pods -n nexus
-   kubectl logs -n nexus deployment/nexus-api --all-containers --since=15m
-   kubectl rollout history deployment/nexus-api -n nexus
-   kubectl get application -n argocd nexus-api -o yaml
+   kubectl get rollout -n nexus nexus-api
+   kubectl describe rollout -n nexus nexus-api
+   kubectl get analysisrun -n nexus
    ```
 
+3. Correlate the interval in Loki and Tempo. Start with application logs, then
+   follow trace IDs through API, PostgreSQL, Valkey, and SQS spans.
 4. Check `Nexus AWS Overview` for simultaneous RDS, Valkey, or SQS pressure.
 5. If a new image caused the failures, revert the image tag in Git and let Argo
-   CD reconcile it. Do not patch the Deployment directly because GitOps will
+   CD reconcile it. Do not patch the Rollout directly because GitOps will
    overwrite that change.
-6. Resolve after the 5xx ratio remains below the configured threshold for the
-   full alert evaluation window.
+6. Resolve after the burn rate falls below the alert threshold; the remaining
+   budget is shown on the Sloth dashboard in Grafana.
 
-## NexusHighRequestLatency
+## NexusApiLatencyBudgetBurn
 
-The Istio-measured 95th-percentile response time remains above the configured
-threshold.
+Too many API requests take longer than the latency threshold of the
+`requests-latency` objective, measured by Istio at the API pod.
 
-1. In `Nexus Overview`, identify the affected service and compare latency with
-   request rate, CPU, memory, and 5xx responses.
-2. Use Tempo to find slow traces from the same interval. Compare application
-   span duration with PostgreSQL, Valkey, and SQS child spans.
+1. In `Nexus Overview`, compare latency with request rate, CPU, memory, and
+   5xx responses.
+2. Use Tempo to find slow traces from the same interval and compare the API
+   span with its PostgreSQL, Valkey, and SQS child spans. Use Pyroscope in
+   Grafana to see which functions consume CPU during the slow period.
 3. Check pod saturation, throttling, replicas, and autoscaling:
 
    ```bash
@@ -79,5 +85,4 @@ threshold.
    memory pressure. If only one pod is slow, inspect its logs and node events.
 5. Prefer a Git change for sustained capacity adjustments. Temporary manual
    scaling is acceptable only as a recorded incident mitigation.
-6. Resolve after p95 latency remains below the threshold for the full alert
-   evaluation window.
+6. Resolve after the burn rate falls below the alert threshold.

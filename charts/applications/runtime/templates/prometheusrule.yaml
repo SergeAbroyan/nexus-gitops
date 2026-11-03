@@ -19,22 +19,4 @@ spec:
             summary: Nexus service target is unavailable
             description: Prometheus has been unable to scrape {{ "{{ $labels.pod }}" }} for at least {{ .Values.observability.targetDownFor }}.
             runbook_url: https://github.com/SergeAbroyan/nexus-gitops/blob/main/docs/runbooks/application-alerts.md#nexustargetdown
-        - alert: NexusHighServerErrorRate
-          expr: sum(rate(istio_requests_total{destination_service_namespace={{ .Release.Namespace | quote }}, response_code=~"5.."}[5m])) / clamp_min(sum(rate(istio_requests_total{destination_service_namespace={{ .Release.Namespace | quote }}}[5m])), 1) > {{ .Values.observability.highErrorRateThreshold }}
-          for: {{ .Values.observability.highErrorRateFor }}
-          labels:
-            severity: warning
-          annotations:
-            summary: Nexus server error rate is elevated
-            description: More than {{ mulf .Values.observability.highErrorRateThreshold 100 }} percent of Nexus requests are returning 5xx responses.
-            runbook_url: https://github.com/SergeAbroyan/nexus-gitops/blob/main/docs/runbooks/application-alerts.md#nexushighservererrorrate
-        - alert: NexusHighRequestLatency
-          expr: histogram_quantile(0.95, sum by (le) (rate(istio_request_duration_milliseconds_bucket{destination_service_namespace={{ .Release.Namespace | quote }}}[5m]))) > {{ .Values.observability.highLatencyThresholdMilliseconds }}
-          for: {{ .Values.observability.highLatencyFor }}
-          labels:
-            severity: warning
-          annotations:
-            summary: Nexus request latency is elevated
-            description: The Nexus 95th-percentile request latency has exceeded {{ .Values.observability.highLatencyThresholdMilliseconds }} milliseconds for at least {{ .Values.observability.highLatencyFor }}.
-            runbook_url: https://github.com/SergeAbroyan/nexus-gitops/blob/main/docs/runbooks/application-alerts.md#nexushighrequestlatency
 {{- end }}

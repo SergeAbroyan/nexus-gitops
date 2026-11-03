@@ -37,6 +37,11 @@ cluster:
     worker:
       namespace: nexus
       name: worker
+    kyverno:
+      namespace: kyverno
+      name: kyverno-admission-controller
+  ciIdentity: https://github.com/SergeAbroyan/nexus-applications/.github/workflows/ci.yaml@refs/heads/main
+  slackWebhookSecretName: nexus/alerts/slack-webhook-url
   alertTopicArn: arn:aws:sns:us-east-1:111111111111:nexus-ci-use1-alerts
   grafanaAdminSecretArn: arn:aws:secretsmanager:us-east-1:111111111111:secret:nexus-ci-use1/grafana/admin-password-AbCdEf
   database:

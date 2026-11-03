@@ -60,4 +60,6 @@ disruptionBudget:
 observability:
   enabled: true
   tracing:
-    enabled: false
+    enabled: true
+  profiling:
+    enabled: true

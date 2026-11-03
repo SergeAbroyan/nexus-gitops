@@ -1,0 +1,80 @@
+name: Promote release
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment that receives the release
+        type: choice
+        options:
+          - staging
+          - production
+      services:
+        description: Services to promote
+        type: choice
+        options:
+          - api worker
+          - api
+          - worker
+
+concurrency:
+  group: gitops-promotion
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  promote:
+    name: Promote to ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: ${{ inputs.environment }}
+    permissions:
+      contents: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Copy the image tags that passed the previous environment
+        env:
+          TARGET: ${{ inputs.environment }}
+          SERVICES: ${{ inputs.services }}
+        run: |
+          set -euo pipefail
+          case "${TARGET}" in
+            staging) source=dev ;;
+            production) source=staging ;;
+          esac
+
+          for service in ${SERVICES}; do
+            tag="$(sed -n -E 's/^  tag: "?([^"]+)"?$/\1/p' "environments/${source}/${service}-values.yaml")"
+            [[ -n "${tag}" ]]
+            file="environments/${TARGET}/${service}-values.yaml"
+            sed -i -E "s/^  tag: .*/  tag: \"${tag}\"/" "${file}"
+            grep -Fqx "  tag: \"${tag}\"" "${file}"
+            echo "- ${service}: \`${tag}\` from ${source}" >> "${GITHUB_STEP_SUMMARY}"
+          done
+
+      - name: Commit the promotion
+        env:
+          TARGET: ${{ inputs.environment }}
+          SERVICES: ${{ inputs.services }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "${TARGET} already runs these images." >> "${GITHUB_STEP_SUMMARY}"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit --quiet --all -m "deploy(${TARGET}): promote ${SERVICES// /, }"
+          for attempt in 1 2 3; do
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            echo "Push attempt ${attempt} was rejected; rebasing on the latest commit." >&2
+            git pull --rebase origin main
+          done
+          exit 1

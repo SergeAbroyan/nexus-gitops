@@ -1,7 +1,7 @@
 apiVersion: networking.istio.io/v1
 kind: Gateway
 metadata:
-  name: {{ .Values.gateway.name }}
+  name: {{ required "gateway.name is required" .Values.gateway.name }}
 spec:
   selector:
     {{- toYaml (required "gateway.selector is required" .Values.gateway.selector) | nindent 4 }}

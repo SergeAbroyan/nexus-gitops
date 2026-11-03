@@ -1,0 +1,16 @@
+sloth:
+  defaultSloPeriod: 30d
+
+commonPlugins:
+  enabled: false
+
+metrics:
+  enabled: true
+
+resources:
+  requests:
+    cpu: 25m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi

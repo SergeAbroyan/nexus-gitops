@@ -1,5 +1,8 @@
 fullnameOverride: monitoring
 
+crds:
+  enabled: false
+
 kubeEtcd:
   enabled: false
 kubeControllerManager:
@@ -19,6 +22,22 @@ prometheusOperator:
       memory: 512Mi
 
 prometheus:
+  additionalServiceMonitors:
+    - name: argocd
+      namespaceSelector:
+        matchNames:
+          - argocd
+      selector:
+        matchExpressions:
+          - key: app.kubernetes.io/name
+            operator: In
+            values:
+              - argocd-metrics
+              - argocd-server-metrics
+              - argocd-repo-server-metrics
+      endpoints:
+        - port: http-metrics
+          interval: 30s
   prometheusSpec:
     retention: 7d
     retentionSize: 16GB
@@ -27,6 +46,9 @@ prometheus:
     podMonitorSelectorNilUsesHelmValues: false
     podMonitorSelector: {}
     podMonitorNamespaceSelector: {}
+    serviceMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorSelector: {}
+    serviceMonitorNamespaceSelector: {}
     ruleSelectorNilUsesHelmValues: false
     ruleSelector: {}
     ruleNamespaceSelector: {}
@@ -52,18 +74,6 @@ alertmanager:
   config:
     global:
       resolve_timeout: 5m
-    route:
-      group_by:
-        - namespace
-        - alertname
-      group_wait: 30s
-      group_interval: 5m
-      repeat_interval: 12h
-      receiver: nexus-sns
-      routes:
-        - receiver: "null"
-          matchers:
-            - alertname = Watchdog
   alertmanagerSpec:
     nodeSelector:
       role: general
@@ -144,3 +154,32 @@ extraManifests:
           data:
             admin-user: admin
             admin-password: "{{ `{{ .adminPassword }}` }}"
+
+additionalPrometheusRulesMap:
+  argocd:
+    groups:
+      - name: argocd
+        rules:
+          - alert: ArgoCDApplicationDegraded
+            expr: max by (name, project) (argocd_app_info{health_status="Degraded"}) == 1
+            for: 15m
+            labels:
+              severity: warning
+            annotations:
+              summary: Argo CD application {{ $labels.name }} has been degraded for 15 minutes.
+              runbook_url: https://github.com/SergeAbroyan/nexus-gitops/blob/main/docs/runbooks/platform-alerts.md#argocdapplicationdegraded
+          - alert: ArgoCDApplicationOutOfSync
+            expr: max by (name, project) (argocd_app_info{sync_status="OutOfSync"}) == 1
+            for: 30m
+            labels:
+              severity: warning
+            annotations:
+              summary: Argo CD application {{ $labels.name }} has been out of sync for 30 minutes.
+              runbook_url: https://github.com/SergeAbroyan/nexus-gitops/blob/main/docs/runbooks/platform-alerts.md#argocdapplicationoutofsync
+          - alert: ArgoCDSyncFailed
+            expr: sum by (name, project) (increase(argocd_app_sync_total{phase=~"Error|Failed"}[15m])) > 0
+            labels:
+              severity: warning
+            annotations:
+              summary: Argo CD failed to sync application {{ $labels.name }}.
+              runbook_url: https://github.com/SergeAbroyan/nexus-gitops/blob/main/docs/runbooks/platform-alerts.md#argocdsyncfailed

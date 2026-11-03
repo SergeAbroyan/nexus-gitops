@@ -1,15 +1,16 @@
 {
   "$schema": "https://json-schema.org/draft-07/schema#",
   "type": "object",
-  "required": ["project", "syncPolicy", "storageClassName", "ingressGateway", "tracing", "addons", "platform", "applications", "cluster"],
+  "required": ["project", "syncPolicy", "storageClassName", "ingressGateway", "tracing", "alerting", "addons", "platform", "applications", "cluster"],
   "properties": {
     "project": { "$ref": "#/definitions/name" },
     "storageClassName": { "$ref": "#/definitions/name" },
     "ingressGateway": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["selector"],
+      "required": ["name", "selector"],
       "properties": {
+        "name": { "$ref": "#/definitions/name" },
         "selector": { "type": "object", "minProperties": 1, "additionalProperties": { "type": "string" } }
       }
     },
@@ -20,6 +21,22 @@
       "properties": {
         "port": { "$ref": "#/definitions/port" },
         "samplingPercentage": { "type": "number", "minimum": 0, "maximum": 100 }
+      }
+    },
+    "alerting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["slack"],
+      "properties": {
+        "slack": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enabled", "channel"],
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "channel": { "type": "string", "pattern": "^#[a-z0-9_-]+$" }
+          }
+        }
       }
     },
     "addons": {
@@ -45,7 +62,8 @@
       "additionalProperties": false,
       "required": [
         "environment", "name", "region", "vpcId", "gitops", "hostname", "ingress", "ecrRegistry", "ebsKmsKeyArn",
-        "karpenter", "serviceAccounts", "alertTopicArn", "grafanaAdminSecretArn", "database", "cache", "queue"
+        "karpenter", "serviceAccounts", "alertTopicArn", "grafanaAdminSecretArn", "slackWebhookSecretName", "ciIdentity",
+        "database", "cache", "queue"
       ],
       "properties": {
         "environment": { "$ref": "#/definitions/name" },
@@ -85,7 +103,7 @@
         "serviceAccounts": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["karpenter", "loadBalancerController", "externalSecrets", "alertmanager", "grafana", "api", "worker"],
+          "required": ["karpenter", "loadBalancerController", "externalSecrets", "alertmanager", "grafana", "api", "worker", "kyverno"],
           "properties": {
             "karpenter": { "$ref": "#/definitions/serviceAccount" },
             "loadBalancerController": { "$ref": "#/definitions/serviceAccount" },
@@ -93,11 +111,14 @@
             "alertmanager": { "$ref": "#/definitions/serviceAccount" },
             "grafana": { "$ref": "#/definitions/serviceAccount" },
             "api": { "$ref": "#/definitions/serviceAccount" },
-            "worker": { "$ref": "#/definitions/serviceAccount" }
+            "worker": { "$ref": "#/definitions/serviceAccount" },
+            "kyverno": { "$ref": "#/definitions/serviceAccount" }
           }
         },
         "alertTopicArn": { "$ref": "#/definitions/arn" },
         "grafanaAdminSecretArn": { "$ref": "#/definitions/arn" },
+        "slackWebhookSecretName": { "type": "string", "minLength": 1 },
+        "ciIdentity": { "type": "string", "pattern": "^https://github\\.com/[^/]+/[^/]+/\\.github/workflows/[^@]+@refs/heads/.+$" },
         "database": {
           "type": "object",
           "additionalProperties": false,

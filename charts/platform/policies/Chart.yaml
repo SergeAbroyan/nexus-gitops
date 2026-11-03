@@ -1,0 +1,5 @@
+apiVersion: v2
+name: nexus-policies
+description: Kyverno policies that secure the Nexus workloads in the cluster
+type: application
+version: 0.1.0

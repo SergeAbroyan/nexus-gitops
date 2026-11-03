@@ -3,6 +3,8 @@
 {{- $accounts := $cluster.serviceAccounts -}}
 {{- $gateway := index .Values.addons "istio-ingress" -}}
 {{- $traceHost := printf "otel-traces.%s.svc.cluster.local" (index .Values.addons "otel-traces").namespace -}}
+{{- $profilingAddress := printf "http://pyroscope.%s.svc.cluster.local:4040" (index .Values.addons "pyroscope").namespace -}}
+{{- $slack := .Values.alerting.slack -}}
 istiod:
   values:
     meshConfig:
@@ -46,6 +48,13 @@ aws-load-balancer-controller:
     vpcId: {{ $cluster.vpcId | quote }}
     serviceAccount:
       name: {{ $accounts.loadBalancerController.name }}
+kyverno:
+  namespace: {{ $accounts.kyverno.namespace }}
+  values:
+    admissionController:
+      rbac:
+        serviceAccount:
+          name: {{ $accounts.kyverno.name }}
 external-secrets:
   namespace: {{ $accounts.externalSecrets.namespace }}
   values:
@@ -64,6 +73,25 @@ monitoring:
       serviceAccount:
         name: {{ $accounts.alertmanager.name }}
       config:
+        route:
+          group_by:
+            - namespace
+            - alertname
+          group_wait: 30s
+          group_interval: 5m
+          repeat_interval: 12h
+          receiver: nexus-sns
+          routes:
+            - receiver: "null"
+              matchers:
+                - alertname = Watchdog
+            {{- if $slack.enabled }}
+            - receiver: slack
+              continue: true
+              matchers:
+                - 'severity =~ "warning|critical"'
+            - receiver: nexus-sns
+            {{- end }}
         receivers:
           - name: "null"
           - name: nexus-sns
@@ -72,7 +100,18 @@ monitoring:
                 send_resolved: true
                 sigv4:
                   region: {{ $cluster.region | quote }}
+          {{- if $slack.enabled }}
+          - name: slack
+            slack_configs:
+              - api_url_file: /etc/alertmanager/secrets/alertmanager-slack/url
+                channel: {{ $slack.channel | quote }}
+                send_resolved: true
+          {{- end }}
       alertmanagerSpec:
+        {{- if $slack.enabled }}
+        secrets:
+          - alertmanager-slack
+        {{- end }}
         storage:
           volumeClaimTemplate:
             spec:
@@ -115,6 +154,12 @@ monitoring:
               spanEndTimeShift: 1m
               filterByTraceID: true
               filterBySpanID: false
+        - name: Pyroscope
+          type: grafana-pyroscope-datasource
+          uid: pyroscope
+          access: proxy
+          url: {{ $profilingAddress }}
+          isDefault: false
     extraManifests:
       aws-secrets-manager:
         spec:
@@ -127,6 +172,25 @@ monitoring:
             - secretKey: adminPassword
               remoteRef:
                 key: {{ $cluster.grafanaAdminSecretArn | quote }}
+      {{- if $slack.enabled }}
+      alertmanager-slack:
+        apiVersion: external-secrets.io/v1
+        kind: ExternalSecret
+        metadata:
+          name: alertmanager-slack
+        spec:
+          refreshInterval: 1h
+          secretStoreRef:
+            name: aws-secrets-manager
+            kind: SecretStore
+          target:
+            name: alertmanager-slack
+            creationPolicy: Owner
+          data:
+            - secretKey: url
+              remoteRef:
+                key: {{ $cluster.slackWebhookSecretName | quote }}
+      {{- end }}
 loki:
   values:
     singleBinary:
@@ -160,6 +224,16 @@ otel-traces:
             - providers:
                 - name: otel-tracing
               randomSamplingPercentage: {{ .Values.tracing.samplingPercentage }}
+pyroscope:
+  values:
+    pyroscope:
+      persistence:
+        storageClassName: {{ .Values.storageClassName }}
+opencost:
+  values:
+    opencost:
+      exporter:
+        defaultClusterId: {{ $cluster.name | quote }}
 karpenter-config:
   values:
     clusterName: {{ $cluster.name | quote }}
@@ -179,12 +253,15 @@ ingress-config:
     host: {{ $cluster.hostname | quote }}
     targetGroupArn: {{ $cluster.ingress.targetGroupArn | quote }}
     gateway:
+      name: {{ .Values.ingressGateway.name }}
       port: {{ $cluster.ingress.port }}
       service: istio-ingress
       selector:
         {{- toYaml .Values.ingressGateway.selector | nindent 8 }}
-    nexus:
-      namespace: {{ $accounts.api.namespace }}
+policies:
+  values:
+    imageVerification:
+      subject: {{ $cluster.ciIdentity | quote }}
 runtime:
   namespace: {{ $accounts.api.namespace }}
   values:
@@ -201,6 +278,11 @@ api:
       tracing:
         endpoint: {{ printf "http://%s:%v" $traceHost .Values.tracing.port | quote }}
         sampleRatio: {{ divf .Values.tracing.samplingPercentage 100 | toString | quote }}
+      profiling:
+        serverAddress: {{ $profilingAddress | quote }}
+    ingress:
+      host: {{ $cluster.hostname | quote }}
+      gateway: {{ printf "%s/%s" $gateway.namespace .Values.ingressGateway.name | quote }}
     config:
       awsRegion: {{ $cluster.region | quote }}
       database:
@@ -226,6 +308,12 @@ worker:
       registry: {{ $cluster.ecrRegistry | quote }}
     serviceAccount:
       name: {{ $accounts.worker.name }}
+    observability:
+      tracing:
+        endpoint: {{ printf "http://%s:%v" $traceHost .Values.tracing.port | quote }}
+        sampleRatio: {{ divf .Values.tracing.samplingPercentage 100 | toString | quote }}
+      profiling:
+        serverAddress: {{ $profilingAddress | quote }}
     config:
       awsRegion: {{ $cluster.region | quote }}
       sqs:

@@ -1,0 +1,22 @@
+{{- if .Values.rollout.enabled }}
+{{- $selector := printf "reporter=\"destination\", destination_service_namespace=\"%s\", destination_service_name=\"%s-canary\"" .Release.Namespace .Chart.Name }}
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: {{ .Values.rollout.analysisTemplate }}
+  labels:
+    {{- include "nexus-base.labels" (dict "root" . "name" .Chart.Name "partOf" "nexus" "component" "api") | nindent 4 }}
+spec:
+  metrics:
+    - name: success-rate
+      interval: {{ .Values.analysis.interval }}
+      failureLimit: {{ .Values.analysis.failureLimit }}
+      successCondition: result[0] >= {{ .Values.analysis.successRate }} || isNaN(result[0])
+      provider:
+        prometheus:
+          address: {{ .Values.analysis.prometheusAddress }}
+          query: >-
+            sum(rate(istio_requests_total{ {{- $selector }}, response_code!~"5.."}[2m]))
+            / sum(rate(istio_requests_total{ {{- $selector }}}[2m]))
+            or vector(1)
+{{- end }}

@@ -1,0 +1,5 @@
+slo:
+  availability:
+    objective: 99.9
+  latency:
+    objective: 99.5

@@ -8,8 +8,11 @@ observability:
     enabled: true
   scrapeInterval: 30s
   targetDownFor: 5m
-  highErrorRateFor: 10m
-  highErrorRateThreshold: 0.05
-  highLatencyFor: 10m
-  highLatencyThresholdMilliseconds: 1000
+
+slo:
+  availability:
+    objective: 99.5
+  latency:
+    objective: 99
+    thresholdMilliseconds: 500
 

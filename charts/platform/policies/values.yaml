@@ -1,0 +1,11 @@
+workloadSecurity:
+  namespaces:
+    - nexus
+    - cloudbeaver
+
+imageVerification:
+  namespaces:
+    - nexus
+  images:
+    - "*.dkr.ecr.*.amazonaws.com/nexus/*"
+  issuer: https://token.actions.githubusercontent.com

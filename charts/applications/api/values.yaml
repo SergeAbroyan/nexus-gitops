@@ -52,6 +52,25 @@ observability:
   enabled: true
   tracing:
     enabled: true
+  profiling:
+    enabled: true
+
+rollout:
+  enabled: true
+  analysisTemplate: nexus-api-success-rate
+  steps:
+    - setWeight: 20
+    - pause:
+        duration: 2m
+    - setWeight: 50
+    - pause:
+        duration: 2m
+
+analysis:
+  successRate: 0.95
+  interval: 1m
+  failureLimit: 2
+  prometheusAddress: http://monitoring-prometheus.monitoring.svc.cluster.local:9090
 
 config:
   database:

@@ -31,8 +31,9 @@ charts/
 │   └── runtime/             Nexus namespace, mesh policy, alerts, and dashboards
 └── platform/
     ├── cloudbeaver/         Internal database administration UI
-    ├── ingress-config/      Istio gateway, route, and load balancer binding
+    ├── ingress-config/      Istio gateway and load balancer binding
     ├── karpenter-config/    EC2 node class and node pools
+    ├── policies/            Kyverno workload security and image signature policies
     └── storage-config/      Encrypted EBS StorageClass
 environments/
 ├── global-values.yaml       Conventions shared by the Nexus applications
@@ -40,7 +41,11 @@ environments/
 ├── staging/                 Values that differ in staging
 └── production/              Values that differ in production
 docs/runbooks/               Alert response procedures
-policies/                    Kyverno workload security policies
+.github/workflows/
+├── validate.yaml            Secret scan and render, schema, and policy checks
+└── promote.yaml             Approved promotion to staging and production
+renovate.json                Dependency updates for charts, images, and actions
+.pre-commit-config.yaml      Local checks before every commit
 ```
 
 ## How Argo CD deploys a cluster
@@ -83,14 +88,15 @@ wait possible.
 | Wave | Applications | Why |
 | --- | --- | --- |
 | 0 | `nexus-platform` AppProject | Every Application belongs to it |
-| 1 | `istio-base`, `karpenter-crd`, `aws-load-balancer-controller` | CRDs, and the webhook that admits every Service |
-| 2 | `istio-cni`, `istiod`, `karpenter`, `external-secrets`, `metrics-server` | Controllers that run on the managed `system` nodes |
-| 3 | `karpenter-config`, `storage-config` | Node pools and the storage class the workloads need |
+| 1 | `istio-base`, `karpenter-crd`, `prometheus-operator-crds`, `aws-load-balancer-controller` | CRDs, and the webhook that admits every Service |
+| 2 | `istio-cni`, `istiod`, `karpenter`, `external-secrets`, `metrics-server`, `kyverno`, `argo-rollouts` | Controllers that run on the managed `system` nodes |
+| 3 | `karpenter-config`, `storage-config`, `policies`, `sloth` | Node pools, the storage class, admission policies, and the SLO controller |
 | 4 | Everything else | Pods start only after `istiod` can inject their sidecars |
 
-Failed syncs retry with backoff, so an Application that needs a CRD from
-another Application in the same wave, such as a `ServiceMonitor` that needs
-the monitoring stack, still converges.
+The Prometheus operator CRDs have their own Application in the first wave,
+and `kube-prometheus-stack` does not install them, so every add-on can ship a
+`ServiceMonitor` or `PrometheusRule` regardless of its wave, and CRD upgrades
+are applied by Argo CD instead of being skipped by Helm.
 
 ### Cluster facts
 
@@ -107,12 +113,14 @@ a missing, misspelled, or mistyped fact before anything renders:
 | `ebsKmsKeyArn`, `karpenter` | Node volume encryption, Karpenter node role and interruption queue |
 | `serviceAccounts` | Namespace and name of every service account that has an AWS identity |
 | `alertTopicArn`, `grafanaAdminSecretArn` | Alertmanager notifications, Grafana administrator password |
+| `slackWebhookSecretName` | Secrets Manager secret that holds the Slack webhook URL |
+| `ciIdentity` | GitHub Actions workflow identity that must have signed every Nexus image |
 | `database`, `cache`, `queue` | Connection settings of the API and worker |
 
 An Application whose pods use an AWS identity runs in the namespace that
 Terraform bound the identity to, so `_wiring.tpl` sets the namespace of
 `aws-load-balancer-controller`, `external-secrets`, `karpenter`,
-`karpenter-crd`, `monitoring`, and the Nexus applications from
+`karpenter-crd`, `kyverno`, `monitoring`, and the Nexus applications from
 `serviceAccounts` instead of `values.yaml`.
 
 ## Where each value lives
@@ -121,7 +129,7 @@ Every value has exactly one home:
 
 | Location | Holds |
 | --- | --- |
-| `bootstrap/values.yaml` | What runs: chart versions, namespaces, sync waves, the storage class name, the gateway selector, the trace port, and the trace sampling percentage |
+| `bootstrap/values.yaml` | What runs: chart versions, namespaces, sync waves, the storage class name, the gateway name and selector, the trace port, the trace sampling percentage, and the Slack switch |
 | `bootstrap/templates/_wiring.tpl` | Values derived from cluster facts, and values that point one Application at another |
 | `addons/<key>.yaml` | How a third-party chart is configured, the same in every environment |
 | chart `values.yaml` | Defaults of a Nexus chart that are the same in every environment |
@@ -140,18 +148,31 @@ Values that differ per environment today:
 | `api`, `worker` | 1–5 replicas, PDB 1 | 2–10 replicas, PDB 1 | 3–20 replicas, PDB 2 |
 | `cloudbeaver` | 5Gi workspace | 5Gi workspace | 10Gi workspace |
 | `karpenter` | 1 controller replica | 2 | 2 |
+| `argo-rollouts` | 1 controller replica | 2 | 2 |
+| `kyverno` | 1 admission replica | 3 | 3 |
+| `runtime` | availability 99.5%, latency 99% | 99.5%, 99% | 99.9%, 99.5% |
 | `karpenter-config` | Spot first in every pool, CPU limits 8/16/16, consolidate after 2m | On-Demand `system` and `general`, 16/32/32, 5m | On-Demand `system` and `general`, 32/96/64, 10m |
 | `storage-config` | volume deleted with its claim | volume retained | volume retained |
 
 Image tags live in the environment files: `image.tag` for `api`, `worker`,
 and `cloudbeaver`. Application tags are immutable commit SHAs. The application
 pipeline in `nexus-applications` updates `image.tag` in the DEV files after it
-publishes an image; staging and production advance only by a deliberate change
-of their tag to an already tested SHA.
+publishes and signs an image. Staging and production advance only through the
+`Promote release` workflow, described below.
 
 To change the catalog for one environment only, for example to try a new
 add-on version in DEV first, create `environments/<env>/bootstrap-values.yaml`
 with the override. The root Application loads it when it exists.
+
+## Promotion
+
+`.github/workflows/promote.yaml` runs on demand from the Actions tab. Choose
+the target environment and the services; the workflow copies the image tags
+from the previous environment, DEV to staging or staging to production, commits
+the change, and Argo CD rolls it out. The job runs in a GitHub environment of
+the same name, so it waits for the reviewers configured on that environment
+before it changes anything. Every promotion is a commit, so the history of
+`environments/` is the deployment log, and a rollback is a revert.
 
 ## Common changes
 
@@ -172,7 +193,19 @@ that use the External Secrets controller's EKS Pod Identity, so no credentials
 are stored anywhere. In a standby region the database is a read replica of the
 primary, so the store reads the secret from the primary region through
 `externalSecret.region`, and the API skips schema changes while the database is
-read-only. It sends traces to the OpenTelemetry gateway.
+read-only. It sends traces to the OpenTelemetry gateway and CPU and memory profiles to
+Pyroscope.
+
+The API is released as a canary. Its chart sets `rollout.enabled`, so
+`nexus-base` renders an Argo Rollouts `Rollout` instead of a `Deployment`, plus
+a `nexus-api-canary` Service. The API chart also owns the public
+`VirtualService`; Argo Rollouts shifts its `primary` route from the stable to
+the canary Service in the steps of `rollout.steps`, 20% then 50% then all
+traffic, and the `nexus-api-success-rate` AnalysisTemplate checks the canary's
+Istio success rate every minute from the second step onward. A canary that
+fails the analysis is aborted and the stable version keeps serving. The
+Application ignores the route weights and the Service selectors, which Argo
+Rollouts owns while a release runs.
 
 `worker` runs on Spot capacity and mounts an `emptyDir` at `/tmp`, because
 Spring Boot's embedded Tomcat needs a writable temporary directory while the
@@ -183,17 +216,28 @@ read-only container security, health checks, resource limits, autoscaling,
 disruption budgets, zone spreading, and Pod Identity service accounts. DEV runs
 one replica of each; staging and production run at least two and three.
 
+The worker also traces each SQS message as a child of the API request that
+queued it, and sends profiles to Pyroscope.
+
 `runtime` owns the `nexus` namespace with sidecar injection and the Restricted
 Pod Security Standard, a `STRICT` mutual TLS `PeerAuthentication`, a
-`PodMonitor`, the Prometheus alerts, and the Grafana dashboards. Istio merges
-each application's `/metrics` into port `15020`, so Prometheus scrapes it
-without weakening mutual TLS. Alert thresholds are chart values, and every
-alert links to its runbook.
+`PodMonitor`, the Prometheus alerts, the API service level objectives, and the
+Grafana dashboards. Istio merges each application's `/metrics` into port
+`15020`, so Prometheus scrapes it without weakening mutual TLS.
+
+The API has two objectives over 30 days, defined as a Sloth
+`PrometheusServiceLevel`: availability, the share of requests without a 5xx
+response, and latency, the share of requests faster than
+`slo.latency.thresholdMilliseconds`. Sloth turns them into recording rules and
+multi-window burn-rate alerts: a critical page when the error budget burns
+fast, a warning ticket when it burns slowly. Objectives are chart values with
+stricter production values, and every alert links to its runbook.
 
 ## Platform charts
 
-`ingress-config` owns the Istio `Gateway` on port 8443, the Nexus route, and a
-`TargetGroupBinding`. CloudFront terminates TLS for the public hostname and
+`ingress-config` owns the Istio `Gateway` on port 8443 and a
+`TargetGroupBinding`; each application chart owns its own route on that
+gateway. CloudFront terminates TLS for the public hostname and
 reaches the region's internal Network Load Balancer through a VPC origin;
 Terraform creates that load balancer and passes its target group ARN as a
 cluster fact, and the binding registers the gateway pods. The gateway
@@ -223,17 +267,40 @@ recreating the `nexus-gp3` StorageClass.
 `cloudbeaver` provides an internal database administration UI with a
 persistent workspace, exposed only through a `ClusterIP` Service.
 
+`policies` holds the Kyverno admission policies:
+
+- `require-workload-security` rejects Deployments, StatefulSets, DaemonSets,
+  and Rollouts in the `nexus` and `cloudbeaver` namespaces that run as root,
+  skip the `RuntimeDefault` seccomp profile, allow privilege escalation, keep
+  Linux capabilities, or lack CPU and memory requests and limits.
+- `require-signed-nexus-images` rejects a pod in the `nexus` namespace whose
+  Nexus image from ECR has no keyless cosign signature made by the
+  `nexus-applications` CI workflow on `main`. The expected identity is the
+  `ciIdentity` cluster fact, and Kyverno reads the signatures from ECR with its
+  own Pod Identity.
+
 ## Observability
 
-Prometheus, Grafana, Loki, Tempo, and the OpenTelemetry collectors are add-ons.
+Prometheus, Grafana, Loki, Tempo, Pyroscope, OpenCost, Sloth, and the
+OpenTelemetry collectors are add-ons.
 Istio and the API send traces to `otel-traces`, which forwards them to Tempo;
 `otel-logs` ships container logs to Loki. `tracing.samplingPercentage` in
 `bootstrap/values.yaml` sets the share of traced requests for both the mesh and
 the API. The `Nexus Overview` dashboard shows availability, request rate, CPU,
 memory, the Istio 5xx ratio, and 95th-percentile latency; `Nexus AWS Overview`
 shows the CloudWatch metrics of the region's PostgreSQL, Valkey, and SQS.
-Grafana discovers both dashboards automatically. Response procedures live in
-[`docs/runbooks`](docs/runbooks/README.md).
+Grafana discovers both dashboards automatically. Grafana also has a Pyroscope
+data source for continuous profiles, and OpenCost reports the cost of every
+namespace and workload from Prometheus data. Prometheus scrapes Argo CD and
+alerts when an Application stays degraded, stays out of sync, or fails to sync.
+Response procedures live in [`docs/runbooks`](docs/runbooks/README.md).
+
+Alertmanager sends every alert to the region's SNS topic. Set
+`alerting.slack.enabled: true` in `bootstrap/values.yaml` after storing the
+webhook URL in the Secrets Manager secret that `nexus-platform` creates, and
+warnings and critical alerts also go to `alerting.slack.channel`. The URL is
+read by an `ExternalSecret` and mounted into Alertmanager, so it is never in
+Git or in Helm values.
 
 Istio's validating webhook is changed by `istiod` at runtime, so `istio-base`
 ignores differences in that webhook's `failurePolicy` instead of fighting
@@ -242,15 +309,28 @@ ignores differences in that webhook's `failurePolicy` instead of fighting
 ## Validation
 
 `.github/workflows/validate.yaml` runs on pull requests and pushes to `main`
-and never connects to AWS or a cluster. For every environment it renders the
-`bootstrap` chart with `bootstrap/ci-values.yaml`, then renders every
-Application it produces exactly as Argo CD would: the same chart and version,
-the same values files in the same order, and the wired values. It lints the
-Nexus charts, checks that every values file is loaded, validates all rendered
-resources against Kubernetes 1.36 schemas with kubeconform, and enforces the
-policies in `policies/` on the Nexus charts with Kyverno. Actions are pinned to
-commit SHAs and the kubeconform image to a digest; Dependabot keeps the pins
-current.
+and never connects to AWS or a cluster. Gitleaks scans the whole history for
+committed secrets. For every environment the workflow renders the `bootstrap`
+chart with `bootstrap/ci-values.yaml`, then renders every Application it
+produces exactly as Argo CD would: the same chart and version, the same values
+files in the same order, and the wired values. It lints the Nexus charts,
+checks that every values file is loaded, validates all rendered resources with
+kubeconform against Kubernetes 1.36 schemas and the custom resource schemas of
+the CRDs catalog, and enforces `require-workload-security` on the Nexus charts
+with the Kyverno CLI.
+
+Actions are pinned to commit SHAs with their version alongside, and the
+kubeconform image to a digest. Renovate opens a weekly pull request for each
+group of updates: add-on charts in `bootstrap/values.yaml`, the CloudBeaver
+image, the Helm and Kyverno CLI versions, and the actions.
+
+Install the hooks once to run the fast checks before every commit: whitespace,
+YAML and JSON syntax, Gitleaks, actionlint, and Helm lint of the library and
+bootstrap charts.
+
+```bash
+pre-commit install
+```
 
 Render the Applications of one environment locally:
 

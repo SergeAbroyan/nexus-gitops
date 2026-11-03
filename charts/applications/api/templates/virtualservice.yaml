@@ -1,0 +1,34 @@
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: {{ .Chart.Name }}
+  labels:
+    {{- include "nexus-base.labels" (dict "root" . "name" .Chart.Name "partOf" "nexus" "component" "api") | nindent 4 }}
+spec:
+  hosts:
+    - {{ required "ingress.host is required" .Values.ingress.host | quote }}
+  gateways:
+    - {{ required "ingress.gateway is required" .Values.ingress.gateway | quote }}
+  http:
+    - name: internal-endpoints
+      match:
+        - uri:
+            exact: /metrics
+        - uri:
+            exact: /healthz
+        - uri:
+            exact: /readyz
+      directResponse:
+        status: 404
+        body:
+          string: Not found
+    - name: primary
+      route:
+        - destination:
+            host: {{ .Chart.Name }}
+          weight: 100
+        {{- if .Values.rollout.enabled }}
+        - destination:
+            host: {{ .Chart.Name }}-canary
+          weight: 0
+        {{- end }}

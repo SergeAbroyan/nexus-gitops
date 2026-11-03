@@ -6,6 +6,7 @@ ServiceAccount, Deployment, optional Service, HPA, and PodDisruptionBudget.
 {{- $root := .root -}}
 {{- $workload := .workload -}}
 {{- $serviceAccount := default (dict) $workload.serviceAccount -}}
+{{- $rollout := default (dict) $workload.rollout -}}
 {{- $selectorContext := dict "root" $root "name" .name "instance" .selectorInstance -}}
 {{- $labelContext := dict "root" $root "name" .name "partOf" .partOf "component" .component -}}
 {{- if $serviceAccount.create }}
@@ -19,8 +20,13 @@ metadata:
 automountServiceAccountToken: {{ default false $serviceAccount.automountServiceAccountToken }}
 {{- end }}
 ---
+{{- if $rollout.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+{{- else }}
 apiVersion: apps/v1
 kind: Deployment
+{{- end }}
 metadata:
   name: {{ .name }}
   labels:
@@ -30,9 +36,30 @@ spec:
   replicas: {{ default 1 $workload.replicaCount }}
   {{- end }}
   revisionHistoryLimit: {{ default 3 $workload.revisionHistoryLimit }}
+  {{- if $rollout.enabled }}
+  strategy:
+    canary:
+      stableService: {{ .name }}
+      canaryService: {{ .name }}-canary
+      trafficRouting:
+        istio:
+          virtualService:
+            name: {{ .name }}
+            routes:
+              - primary
+      {{- with $rollout.analysisTemplate }}
+      analysis:
+        startingStep: 1
+        templates:
+          - templateName: {{ . }}
+      {{- end }}
+      steps:
+        {{- toYaml (required "rollout.steps is required" $rollout.steps) | nindent 8 }}
+  {{- else }}
   {{- with $workload.strategy }}
   strategy:
     {{- toYaml . | nindent 4 }}
+  {{- end }}
   {{- end }}
   selector:
     matchLabels:
@@ -152,6 +179,24 @@ spec:
       port: {{ required "A Service port is required when the Service is enabled" $workload.service.port }}
       targetPort: http
       protocol: TCP
+{{- if $rollout.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .name }}-canary
+  labels:
+    {{- include "nexus-base.labels" $labelContext | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "nexus-base.selectorLabels" $selectorContext | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ $workload.service.port }}
+      targetPort: http
+      protocol: TCP
+{{- end }}
 {{- end }}
 {{- if $workload.autoscaling.enabled }}
 ---
@@ -163,8 +208,13 @@ metadata:
     {{- include "nexus-base.labels" $labelContext | nindent 4 }}
 spec:
   scaleTargetRef:
+    {{- if $rollout.enabled }}
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    {{- else }}
     apiVersion: apps/v1
     kind: Deployment
+    {{- end }}
     name: {{ .name }}
   minReplicas: {{ required "autoscaling.minReplicas is required" $workload.autoscaling.minReplicas }}
   maxReplicas: {{ required "autoscaling.maxReplicas is required" $workload.autoscaling.maxReplicas }}
