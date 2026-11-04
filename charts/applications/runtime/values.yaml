@@ -9,6 +9,11 @@ observability:
   scrapeInterval: 30s
   targetDownFor: 5m
 
+probe:
+  interval: 60s
+  downFor: 5m
+  certificateExpiryWarningDays: 14
+
 slo:
   availability:
     objective: 99.5

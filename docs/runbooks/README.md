@@ -21,6 +21,8 @@ the evidence, mitigate customer impact, and only then make a durable change.
 | Alert | Severity | Runbook |
 | --- | --- | --- |
 | `NexusTargetDown` | Critical | [Application alerts](application-alerts.md#nexustargetdown) |
+| `NexusPublicEndpointDown` | Critical | [Application alerts](application-alerts.md#nexuspublicendpointdown) |
+| `NexusCertificateExpiringSoon` | Warning | [Application alerts](application-alerts.md#nexuscertificateexpiringsoon) |
 | `NexusApiAvailabilityBudgetBurn` | Critical or warning | [Application alerts](application-alerts.md#nexusapiavailabilitybudgetburn) |
 | `NexusApiLatencyBudgetBurn` | Critical or warning | [Application alerts](application-alerts.md#nexusapilatencybudgetburn) |
 | `ArgoCDApplicationDegraded` | Warning | [Platform alerts](platform-alerts.md#argocdapplicationdegraded) |
@@ -31,6 +33,9 @@ the evidence, mitigate customer impact, and only then make a durable change.
 | `*-valkey-*-high-memory` | CloudWatch | [AWS dependency alerts](aws-dependency-alerts.md#valkey-high-memory) |
 | `*-sqs-oldest-message` | CloudWatch | [AWS dependency alerts](aws-dependency-alerts.md#sqs-oldest-message) |
 | `*-sqs-dead-letter-messages` | CloudWatch | [AWS dependency alerts](aws-dependency-alerts.md#sqs-dead-letter-messages) |
+
+Practice these procedures before they are needed: [resilience drills](drills.md)
+walk through planned failures in DEV or staging and what each should look like.
 
 ## Common read-only checks
 

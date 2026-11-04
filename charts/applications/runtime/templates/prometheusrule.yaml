@@ -8,6 +8,26 @@ metadata:
     nexus.platform/environment: {{ required "environment is required" .Values.environment | quote }}
 spec:
   groups:
+    - name: nexus.public-endpoint
+      rules:
+        - alert: NexusPublicEndpointDown
+          expr: probe_success{job="probe/{{ .Release.Namespace }}/nexus-public"} == 0
+          for: {{ .Values.probe.downFor }}
+          labels:
+            severity: critical
+          annotations:
+            summary: The public Nexus address does not answer
+            description: The blackbox probe of {{ "{{ $labels.instance }}" }} has failed for at least {{ .Values.probe.downFor }}.
+            runbook_url: https://github.com/SergeAbroyan/nexus-gitops/blob/main/docs/runbooks/application-alerts.md#nexuspublicendpointdown
+        - alert: NexusCertificateExpiringSoon
+          expr: (probe_ssl_earliest_cert_expiry{job="probe/{{ .Release.Namespace }}/nexus-public"} - time()) / 86400 < {{ .Values.probe.certificateExpiryWarningDays }}
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: The public TLS certificate expires soon
+            description: The certificate of {{ "{{ $labels.instance }}" }} expires in {{ "{{ $value | humanize }}" }} days.
+            runbook_url: https://github.com/SergeAbroyan/nexus-gitops/blob/main/docs/runbooks/application-alerts.md#nexuscertificateexpiringsoon
     - name: nexus.availability
       rules:
         - alert: NexusTargetDown

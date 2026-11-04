@@ -40,6 +40,16 @@ cluster:
     kyverno:
       namespace: kyverno
       name: kyverno-admission-controller
+    keda:
+      namespace: keda
+      name: keda-operator
+    trivyOperator:
+      namespace: trivy-system
+      name: trivy-operator
+    velero:
+      namespace: velero
+      name: velero-server
+  backupBucket: nexus-ci-use1-velero-111111111111
   ciIdentity: https://github.com/SergeAbroyan/nexus-applications/.github/workflows/ci.yaml@refs/heads/main
   slackWebhookSecretName: nexus/alerts/slack-webhook-url
   alertTopicArn: arn:aws:sns:us-east-1:111111111111:nexus-ci-use1-alerts

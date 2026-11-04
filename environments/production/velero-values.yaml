@@ -1,0 +1,4 @@
+schedules:
+  daily:
+    template:
+      ttl: 720h

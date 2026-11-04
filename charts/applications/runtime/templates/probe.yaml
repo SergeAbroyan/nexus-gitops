@@ -1,0 +1,19 @@
+{{- if .Values.observability.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: nexus-public
+  labels:
+    {{- include "nexus-runtime.labels" . | nindent 4 }}
+spec:
+  interval: {{ .Values.probe.interval }}
+  module: http_2xx
+  prober:
+    url: {{ required "probe.prober is required" .Values.probe.prober | quote }}
+  targets:
+    staticConfig:
+      static:
+        - {{ required "probe.target is required" .Values.probe.target | quote }}
+      labels:
+        environment: {{ required "environment is required" .Values.environment | quote }}
+{{- end }}

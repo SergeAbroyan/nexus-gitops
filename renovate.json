@@ -33,6 +33,13 @@
     },
     {
       "customType": "regex",
+      "description": "Container images set directly in add-on values",
+      "managerFilePatterns": ["/^addons/.+\\.yaml$/"],
+      "matchStrings": ["image: (?<depName>[a-z0-9./-]+):(?<currentValue>v?[0-9][A-Za-z0-9._-]*)"],
+      "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
       "description": "Helm version installed in workflows",
       "managerFilePatterns": ["/^\\.github/workflows/.+\\.yaml$/"],
       "matchStrings": ["uses: azure/setup-helm@\\S+ # \\S+\\n\\s+with:\\n\\s+version: (?<currentValue>\\S+)"],

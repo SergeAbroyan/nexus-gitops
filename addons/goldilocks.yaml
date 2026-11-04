@@ -1,0 +1,22 @@
+controller:
+  nodeSelector:
+    role: system
+  resources:
+    requests:
+      cpu: 20m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+dashboard:
+  replicaCount: 1
+  nodeSelector:
+    role: general
+  resources:
+    requests:
+      cpu: 20m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi

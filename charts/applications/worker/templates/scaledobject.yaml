@@ -1,0 +1,44 @@
+{{- if and .Values.autoscaling.enabled (eq .Values.autoscaling.provider "keda") }}
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: {{ .Chart.Name }}-aws
+  labels:
+    {{- include "nexus-base.labels" (dict "root" . "name" .Chart.Name "partOf" "nexus" "component" "worker") | nindent 4 }}
+spec:
+  podIdentity:
+    provider: aws
+    identityOwner: keda
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ .Chart.Name }}
+  labels:
+    {{- include "nexus-base.labels" (dict "root" . "name" .Chart.Name "partOf" "nexus" "component" "worker") | nindent 4 }}
+spec:
+  scaleTargetRef:
+    name: {{ .Chart.Name }}
+  minReplicaCount: {{ required "autoscaling.minReplicas is required" .Values.autoscaling.minReplicas }}
+  maxReplicaCount: {{ required "autoscaling.maxReplicas is required" .Values.autoscaling.maxReplicas }}
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        {{- toYaml (required "autoscalingBehavior is required" .Values.autoscalingBehavior) | nindent 8 }}
+  triggers:
+    - type: aws-sqs-queue
+      authenticationRef:
+        name: {{ .Chart.Name }}-aws
+      metadata:
+        queueURL: {{ required "config.sqs.queueURL is required" .Values.config.sqs.queueURL | quote }}
+        queueLength: {{ required "autoscaling.messagesPerReplica is required" .Values.autoscaling.messagesPerReplica | quote }}
+        awsRegion: {{ required "config.awsRegion is required" .Values.config.awsRegion | quote }}
+    - type: cpu
+      metricType: Utilization
+      metadata:
+        value: {{ required "autoscaling.cpuUtilization is required" .Values.autoscaling.cpuUtilization | quote }}
+    - type: memory
+      metricType: Utilization
+      metadata:
+        value: {{ required "autoscaling.memoryUtilization is required" .Values.autoscaling.memoryUtilization | quote }}
+{{- end }}

@@ -52,8 +52,10 @@ service:
   enabled: false
 autoscaling:
   enabled: true
+  provider: keda
   cpuUtilization: 70
   memoryUtilization: 80
+  messagesPerReplica: 5
 disruptionBudget:
   enabled: true
 

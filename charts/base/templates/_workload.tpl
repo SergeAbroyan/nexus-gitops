@@ -198,7 +198,7 @@ spec:
       protocol: TCP
 {{- end }}
 {{- end }}
-{{- if $workload.autoscaling.enabled }}
+{{- if and $workload.autoscaling.enabled (ne (default "hpa" $workload.autoscaling.provider) "keda") }}
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler

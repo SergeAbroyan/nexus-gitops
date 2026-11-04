@@ -2,9 +2,9 @@ apiVersion: v2
 name: nexus-ingress-config
 description: Internal Istio gateway and its load balancer binding
 type: application
-version: 0.5.0
+version: 0.5.1
 appVersion: "1.0.0"
 dependencies:
   - name: nexus-base
-    version: 0.4.0
+    version: 0.5.0
     repository: file://../../base

@@ -62,7 +62,7 @@
       "additionalProperties": false,
       "required": [
         "environment", "name", "region", "vpcId", "gitops", "hostname", "ingress", "ecrRegistry", "ebsKmsKeyArn",
-        "karpenter", "serviceAccounts", "alertTopicArn", "grafanaAdminSecretArn", "slackWebhookSecretName", "ciIdentity",
+        "karpenter", "serviceAccounts", "alertTopicArn", "grafanaAdminSecretArn", "slackWebhookSecretName", "ciIdentity", "backupBucket",
         "database", "cache", "queue"
       ],
       "properties": {
@@ -103,7 +103,7 @@
         "serviceAccounts": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["karpenter", "loadBalancerController", "externalSecrets", "alertmanager", "grafana", "api", "worker", "kyverno"],
+          "required": ["karpenter", "loadBalancerController", "externalSecrets", "alertmanager", "grafana", "api", "worker", "kyverno", "keda", "trivyOperator", "velero"],
           "properties": {
             "karpenter": { "$ref": "#/definitions/serviceAccount" },
             "loadBalancerController": { "$ref": "#/definitions/serviceAccount" },
@@ -112,12 +112,16 @@
             "grafana": { "$ref": "#/definitions/serviceAccount" },
             "api": { "$ref": "#/definitions/serviceAccount" },
             "worker": { "$ref": "#/definitions/serviceAccount" },
-            "kyverno": { "$ref": "#/definitions/serviceAccount" }
+            "kyverno": { "$ref": "#/definitions/serviceAccount" },
+            "keda": { "$ref": "#/definitions/serviceAccount" },
+            "trivyOperator": { "$ref": "#/definitions/serviceAccount" },
+            "velero": { "$ref": "#/definitions/serviceAccount" }
           }
         },
         "alertTopicArn": { "$ref": "#/definitions/arn" },
         "grafanaAdminSecretArn": { "$ref": "#/definitions/arn" },
         "slackWebhookSecretName": { "type": "string", "minLength": 1 },
+        "backupBucket": { "type": "string", "pattern": "^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$" },
         "ciIdentity": { "type": "string", "pattern": "^https://github\\.com/[^/]+/[^/]+/\\.github/workflows/[^@]+@refs/heads/.+$" },
         "database": {
           "type": "object",

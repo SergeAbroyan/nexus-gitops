@@ -5,6 +5,7 @@
 {{- $traceHost := printf "otel-traces.%s.svc.cluster.local" (index .Values.addons "otel-traces").namespace -}}
 {{- $profilingAddress := printf "http://pyroscope.%s.svc.cluster.local:4040" (index .Values.addons "pyroscope").namespace -}}
 {{- $slack := .Values.alerting.slack -}}
+{{- $prober := printf "blackbox-exporter.%s.svc.cluster.local:9115" (index .Values.addons "blackbox-exporter").namespace -}}
 istiod:
   values:
     meshConfig:
@@ -55,6 +56,31 @@ kyverno:
       rbac:
         serviceAccount:
           name: {{ $accounts.kyverno.name }}
+keda:
+  namespace: {{ $accounts.keda.namespace }}
+  values:
+    serviceAccount:
+      operator:
+        name: {{ $accounts.keda.name }}
+trivy-operator:
+  namespace: {{ $accounts.trivyOperator.namespace }}
+  values:
+    serviceAccount:
+      name: {{ $accounts.trivyOperator.name }}
+velero:
+  namespace: {{ $accounts.velero.namespace }}
+  values:
+    serviceAccount:
+      server:
+        name: {{ $accounts.velero.name }}
+    configuration:
+      backupStorageLocation:
+        - name: default
+          provider: aws
+          default: true
+          bucket: {{ $cluster.backupBucket | quote }}
+          config:
+            region: {{ $cluster.region | quote }}
 external-secrets:
   namespace: {{ $accounts.externalSecrets.namespace }}
   values:
@@ -266,6 +292,9 @@ runtime:
   namespace: {{ $accounts.api.namespace }}
   values:
     environment: {{ $cluster.environment }}
+    probe:
+      target: {{ printf "https://%s/" $cluster.hostname | quote }}
+      prober: {{ $prober | quote }}
 api:
   namespace: {{ $accounts.api.namespace }}
   values:

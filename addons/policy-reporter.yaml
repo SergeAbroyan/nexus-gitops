@@ -1,0 +1,38 @@
+nodeSelector:
+  role: general
+
+resources:
+  requests:
+    cpu: 20m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi
+
+plugin:
+  kyverno:
+    enabled: true
+    nodeSelector:
+      role: general
+    resources:
+      requests:
+        cpu: 20m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+
+ui:
+  enabled: true
+  nodeSelector:
+    role: general
+  resources:
+    requests:
+      cpu: 20m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+monitoring:
+  enabled: true

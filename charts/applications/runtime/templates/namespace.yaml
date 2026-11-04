@@ -1,1 +1,1 @@
-{{- include "nexus-base.namespace" (dict "root" . "meshEnabled" .Values.mesh.enabled) }}
+{{- include "nexus-base.namespace" (dict "root" . "meshEnabled" .Values.mesh.enabled "extraLabels" (dict "goldilocks.fairwinds.com/enabled" "true")) }}

@@ -10,6 +10,21 @@ Application named `bootstrap` together with the facts it knows about AWS.
 Everything that runs inside Kubernetes, including every add-on, is defined
 here.
 
+```mermaid
+flowchart LR
+  TF["nexus-platform<br/>Terraform"] -->|installs Argo CD and the<br/>bootstrap Application + AWS facts| ROOT["bootstrap<br/>Application"]
+  ROOT -->|renders| PROJ["AppProject<br/>nexus-platform"]
+  ROOT -->|wave 1| CRDS["CRDs and webhooks<br/>Istio, Karpenter, Prometheus operator,<br/>AWS Load Balancer Controller"]
+  ROOT -->|wave 2| CTRL["Controllers<br/>istiod, Karpenter, External Secrets,<br/>Kyverno, Argo Rollouts, KEDA, VPA"]
+  ROOT -->|wave 3| CFG["Cluster configuration<br/>node pools, storage, policies,<br/>Sloth, Velero"]
+  ROOT -->|wave 4| APPS["Workloads<br/>Nexus API and worker, monitoring,<br/>gateway, scanners, dashboards"]
+  CI["nexus-applications CI"] -->|commits signed image tags| ENVS["environments/dev"]
+  ENVS --> APPS
+```
+
+The [architecture decision records](docs/adr/README.md) explain why each part
+is built the way it is.
+
 ## Repository structure
 
 ```text
@@ -40,7 +55,8 @@ environments/
 ├── dev/                     Values that differ in DEV
 ├── staging/                 Values that differ in staging
 └── production/              Values that differ in production
-docs/runbooks/               Alert response procedures
+docs/runbooks/               Alert response procedures and resilience drills
+docs/adr/                    Architecture decision records
 .github/workflows/
 ├── validate.yaml            Secret scan and render, schema, and policy checks
 └── promote.yaml             Approved promotion to staging and production
@@ -89,8 +105,8 @@ wait possible.
 | --- | --- | --- |
 | 0 | `nexus-platform` AppProject | Every Application belongs to it |
 | 1 | `istio-base`, `karpenter-crd`, `prometheus-operator-crds`, `aws-load-balancer-controller` | CRDs, and the webhook that admits every Service |
-| 2 | `istio-cni`, `istiod`, `karpenter`, `external-secrets`, `metrics-server`, `kyverno`, `argo-rollouts` | Controllers that run on the managed `system` nodes |
-| 3 | `karpenter-config`, `storage-config`, `policies`, `sloth` | Node pools, the storage class, admission policies, and the SLO controller |
+| 2 | `istio-cni`, `istiod`, `karpenter`, `external-secrets`, `metrics-server`, `kyverno`, `argo-rollouts`, `keda`, `vpa` | Controllers that run on the managed `system` nodes |
+| 3 | `karpenter-config`, `storage-config`, `policies`, `sloth`, `velero` | Node pools, storage and snapshot classes, admission policies, the SLO controller, and backups |
 | 4 | Everything else | Pods start only after `istiod` can inject their sidecars |
 
 The Prometheus operator CRDs have their own Application in the first wave,
@@ -114,13 +130,15 @@ a missing, misspelled, or mistyped fact before anything renders:
 | `serviceAccounts` | Namespace and name of every service account that has an AWS identity |
 | `alertTopicArn`, `grafanaAdminSecretArn` | Alertmanager notifications, Grafana administrator password |
 | `slackWebhookSecretName` | Secrets Manager secret that holds the Slack webhook URL |
+| `backupBucket` | S3 bucket where Velero stores the cluster backups |
 | `ciIdentity` | GitHub Actions workflow identity that must have signed every Nexus image |
 | `database`, `cache`, `queue` | Connection settings of the API and worker |
 
 An Application whose pods use an AWS identity runs in the namespace that
 Terraform bound the identity to, so `_wiring.tpl` sets the namespace of
 `aws-load-balancer-controller`, `external-secrets`, `karpenter`,
-`karpenter-crd`, `kyverno`, `monitoring`, and the Nexus applications from
+`karpenter-crd`, `keda`, `kyverno`, `monitoring`, `trivy-operator`, `velero`,
+and the Nexus applications from
 `serviceAccounts` instead of `values.yaml`.
 
 ## Where each value lives
@@ -151,6 +169,7 @@ Values that differ per environment today:
 | `argo-rollouts` | 1 controller replica | 2 | 2 |
 | `kyverno` | 1 admission replica | 3 | 3 |
 | `runtime` | availability 99.5%, latency 99% | 99.5%, 99% | 99.9%, 99.5% |
+| `velero` | backups kept 3 days | 7 days | 30 days |
 | `karpenter-config` | Spot first in every pool, CPU limits 8/16/16, consolidate after 2m | On-Demand `system` and `general`, 16/32/32, 5m | On-Demand `system` and `general`, 32/96/64, 10m |
 | `storage-config` | volume deleted with its claim | volume retained | volume retained |
 
@@ -207,7 +226,10 @@ fails the analysis is aborted and the stable version keeps serving. The
 Application ignores the route weights and the Service selectors, which Argo
 Rollouts owns while a release runs.
 
-`worker` runs on Spot capacity and mounts an `emptyDir` at `/tmp`, because
+`worker` scales with KEDA on the depth of its SQS queue, one replica per five
+waiting messages between the environment's minimum and maximum, with CPU and
+memory as a floor. KEDA reads the queue with its own Pod Identity. The worker
+runs on Spot capacity and mounts an `emptyDir` at `/tmp`, because
 Spring Boot's embedded Tomcat needs a writable temporary directory while the
 root filesystem stays read-only.
 
@@ -255,7 +277,8 @@ node before AWS reclaims it. Karpenter uses only the subnets that Terraform tags
 for the environment's workload Availability Zones. Pin `amiAlias` to a tested
 release before production.
 
-`storage-config` defines the `nexus-gp3` StorageClass: encrypted with the
+`storage-config` also defines `nexus-gp3-snapshots`, the VolumeSnapshotClass
+that Velero uses, and the `nexus-gp3` StorageClass: encrypted with the
 infrastructure EBS key and expandable. In DEV a volume is deleted when its
 claim is deleted, so volumes do not pile up while DEV changes; staging and
 production retain volumes. Destroying a cluster does not delete claims, so
@@ -293,7 +316,12 @@ Grafana discovers both dashboards automatically. Grafana also has a Pyroscope
 data source for continuous profiles, and OpenCost reports the cost of every
 namespace and workload from Prometheus data. Prometheus scrapes Argo CD and
 alerts when an Application stays degraded, stays out of sync, or fails to sync.
-Response procedures live in [`docs/runbooks`](docs/runbooks/README.md).
+The blackbox exporter loads the public address through CloudFront every
+minute, and alerts fire when it fails or when its certificate is close to
+expiry. Goldilocks shows CPU and memory recommendations from the VPA
+recommender for the `nexus` namespace, so requests can be right-sized from
+real usage. Response procedures live in [`docs/runbooks`](docs/runbooks/README.md),
+and [`drills.md`](docs/runbooks/drills.md) rehearses them.
 
 Alertmanager sends every alert to the region's SNS topic. Set
 `alerting.slack.enabled: true` in `bootstrap/values.yaml` after storing the
@@ -305,6 +333,40 @@ Git or in Helm values.
 Istio's validating webhook is changed by `istiod` at runtime, so `istio-base`
 ignores differences in that webhook's `failurePolicy` instead of fighting
 `istiod` on every sync.
+
+## Security
+
+- Kyverno rejects unsigned Nexus images and insecure workloads; Policy Reporter
+  shows every policy result in a UI.
+- Trivy Operator scans every running image for fixable high and critical
+  vulnerabilities, checks workload configuration and RBAC, and looks for
+  secrets in images. Results are `VulnerabilityReport` and
+  `ConfigAuditReport` objects, metrics in Prometheus, and entries in Policy
+  Reporter. It reads private Nexus images with its own Pod Identity.
+- Mutual TLS is strict in the `nexus` namespace, and secrets come only from
+  Secrets Manager through External Secrets.
+
+## Backups
+
+Velero backs up the `nexus`, `cloudbeaver`, and `monitoring` namespaces every
+night at 02:00 UTC: resource definitions go to the cluster's S3 bucket and
+volumes are captured as EBS snapshots through the CSI snapshot class. Backups
+expire after 3 days in DEV, 7 in staging, and 30 in production. The database is
+not in these backups; AWS Backup protects it, as the `nexus-platform` README
+describes.
+
+## Dashboards and tools inside the cluster
+
+None of these are exposed outside the cluster; reach them with a port-forward:
+
+| Tool | Command | Address |
+| --- | --- | --- |
+| Argo CD | `kubectl port-forward -n argocd svc/argocd-server 8080:80` | <http://localhost:8080> |
+| Grafana | `kubectl port-forward -n monitoring svc/monitoring-grafana 3000:80` | <http://localhost:3000> |
+| Policy Reporter | `kubectl port-forward -n policy-reporter svc/policy-reporter-ui 8082:8080` | <http://localhost:8082> |
+| Goldilocks | `kubectl port-forward -n goldilocks svc/goldilocks-dashboard 8083:80` | <http://localhost:8083> |
+| OpenCost | `kubectl port-forward -n opencost svc/opencost 9090:9090` | <http://localhost:9090> |
+| Argo Rollouts | `kubectl argo rollouts get rollout nexus-api -n nexus --watch` | terminal |
 
 ## Validation
 

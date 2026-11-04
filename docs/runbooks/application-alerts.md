@@ -86,3 +86,44 @@ Too many API requests take longer than the latency threshold of the
 5. Prefer a Git change for sustained capacity adjustments. Temporary manual
    scaling is acceptable only as a recorded incident mitigation.
 6. Resolve after the burn rate falls below the alert threshold.
+
+## NexusPublicEndpointDown
+
+The blackbox exporter cannot load the public address through CloudFront,
+the internal load balancer, and the Istio gateway. Users are affected even if
+every pod looks healthy.
+
+1. Open the address in a browser and with `curl -sv https://<hostname>/` to see
+   which hop answers: a CloudFront or WAF error page, a TLS error, or a gateway
+   `503`.
+2. Check the path inside the cluster:
+
+   ```bash
+   kubectl get pods -n istio-ingress
+   kubectl get targetgroupbinding -n istio-ingress
+   kubectl get virtualservice -n nexus nexus-api -o yaml
+   kubectl get rollout -n nexus nexus-api
+   ```
+
+3. Check that the target group has healthy targets:
+
+   ```bash
+   aws elbv2 describe-target-health --target-group-arn <arn from the TargetGroupBinding>
+   ```
+
+4. If only the probe fails, check the probe itself with
+   `kubectl logs -n monitoring deploy/blackbox-exporter`.
+5. Resolve after the probe succeeds again for one evaluation window.
+
+## NexusCertificateExpiringSoon
+
+The certificate that CloudFront serves expires within the warning window. ACM
+renews DNS-validated certificates automatically, so this alert means the
+renewal is stuck.
+
+1. Find the certificate in ACM in `us-east-1` and read its renewal status.
+2. Check that the validation `CNAME` records still exist in the Route 53 zone
+   that `global` manages; `terragrunt apply` in the environment's `edge` unit
+   restores them.
+3. Resolve after ACM reports the renewed certificate and the probe sees the new
+   expiry date.

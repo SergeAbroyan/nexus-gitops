@@ -1,0 +1,35 @@
+nodeSelector:
+  role: system
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+operator:
+  scanJobsConcurrentLimit: 2
+  vulnerabilityScannerScanOnlyCurrentRevisions: true
+  scannerReportTTL: 24h
+  exposedSecretScannerEnabled: true
+  infraAssessmentScannerEnabled: false
+
+trivyOperator:
+  scanJobNodeSelector:
+    role: general
+
+trivy:
+  ignoreUnfixed: true
+  severity: HIGH,CRITICAL
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+
+serviceMonitor:
+  enabled: true

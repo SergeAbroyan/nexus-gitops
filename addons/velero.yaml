@@ -1,0 +1,46 @@
+upgradeCRDs: false
+
+nodeSelector:
+  role: system
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+initContainers:
+  - name: velero-plugin-for-aws
+    image: velero/velero-plugin-for-aws:v1.14.4
+    imagePullPolicy: IfNotPresent
+    volumeMounts:
+      - mountPath: /target
+        name: plugins
+
+credentials:
+  useSecret: false
+
+snapshotsEnabled: false
+deployNodeAgent: false
+
+configuration:
+  features: EnableCSI
+
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+
+schedules:
+  daily:
+    schedule: "0 2 * * *"
+    useOwnerReferencesInBackup: false
+    template:
+      ttl: 168h
+      snapshotVolumes: true
+      includedNamespaces:
+        - nexus
+        - cloudbeaver
+        - monitoring

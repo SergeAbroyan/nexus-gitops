@@ -87,6 +87,22 @@ addons:
     repoURL: https://argoproj.github.io/argo-helm
     chart: argo-rollouts
     version: 2.43.8
+  keda:
+    wave: 2
+    repoURL: https://kedacore.github.io/charts
+    chart: keda
+    version: 2.21.0
+  vpa:
+    wave: 2
+    namespace: vpa
+    repoURL: https://charts.fairwinds.com/stable
+    chart: vpa
+    version: 5.1.0
+  velero:
+    wave: 3
+    repoURL: https://vmware-tanzu.github.io/helm-charts
+    chart: velero
+    version: 12.2.3
   external-secrets:
     wave: 2
     repoURL: https://charts.external-secrets.io
@@ -145,6 +161,29 @@ addons:
     repoURL: https://grafana.github.io/helm-charts
     chart: pyroscope
     version: 2.4.2
+  blackbox-exporter:
+    wave: 4
+    namespace: monitoring
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: prometheus-blackbox-exporter
+    version: 11.20.2
+  trivy-operator:
+    wave: 4
+    repoURL: https://aquasecurity.github.io/helm-charts
+    chart: trivy-operator
+    version: 0.38.1
+  policy-reporter:
+    wave: 4
+    namespace: policy-reporter
+    repoURL: https://kyverno.github.io/policy-reporter
+    chart: policy-reporter
+    version: 3.11.2
+  goldilocks:
+    wave: 4
+    namespace: goldilocks
+    repoURL: https://charts.fairwinds.com/stable
+    chart: goldilocks
+    version: 11.2.0
   opencost:
     wave: 4
     namespace: opencost
