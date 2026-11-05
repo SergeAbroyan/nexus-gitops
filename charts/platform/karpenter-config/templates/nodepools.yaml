@@ -53,9 +53,7 @@ spec:
         - key: karpenter.k8s.aws/instance-size
           operator: In
           values:
-            - medium
-            - large
-            - xlarge
+            {{- toYaml (required "instanceSizes is required" $root.Values.instanceSizes) | nindent 12 }}
   limits:
     cpu: {{ required (printf "nodePools.%s.cpuLimit is required" $poolName) $pool.cpuLimit | quote }}
   disruption:

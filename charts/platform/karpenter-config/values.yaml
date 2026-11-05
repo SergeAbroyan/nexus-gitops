@@ -1,5 +1,10 @@
 amiAlias: al2023@latest
 
+instanceSizes:
+  - large
+  - xlarge
+  - 2xlarge
+
 nodeClass:
   rootVolumeSize: 50Gi
   rootVolumeType: gp3
