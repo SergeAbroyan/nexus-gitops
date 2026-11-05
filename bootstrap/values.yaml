@@ -193,7 +193,7 @@ addons:
 
 platform:
   karpenter-config:
-    wave: 3
+    wave: 2
     namespace: kube-system
   storage-config:
     wave: 3

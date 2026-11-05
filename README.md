@@ -105,8 +105,8 @@ wait possible.
 | --- | --- | --- |
 | 0 | `nexus-platform` AppProject | Every Application belongs to it |
 | 1 | `istio-base`, `karpenter-crd`, `prometheus-operator-crds`, `aws-load-balancer-controller` | CRDs, and the webhook that admits every Service |
-| 2 | `istio-cni`, `istiod`, `karpenter`, `external-secrets`, `metrics-server`, `kyverno`, `argo-rollouts`, `keda`, `vpa` | Controllers that run on the managed `system` nodes |
-| 3 | `karpenter-config`, `storage-config`, `policies`, `sloth`, `velero` | Node pools, storage and snapshot classes, admission policies, the SLO controller, and backups |
+| 2 | `istio-cni`, `istiod`, `karpenter`, `karpenter-config`, `external-secrets`, `metrics-server`, `kyverno`, `argo-rollouts`, `keda`, `vpa` | Controllers that run on the managed `system` nodes, and the Karpenter node pools that add capacity when those nodes are full |
+| 3 | `storage-config`, `policies`, `sloth`, `velero` | Storage and snapshot classes, admission policies, the SLO controller, and backups |
 | 4 | Everything else | Pods start only after `istiod` can inject their sidecars |
 
 The Prometheus operator CRDs have their own Application in the first wave,
