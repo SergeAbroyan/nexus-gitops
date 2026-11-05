@@ -4,7 +4,7 @@ cluster:
   region: us-east-1
   vpcId: vpc-0123456789abcdef0
   gitops:
-    repository: git@github.com:SergeAbroyan/nexus-gitops.git
+    repository: git@github.com:example-owner/nexus-gitops.git
     revision: main
   hostname: nexus-ci.example.com
   ingress:
@@ -50,7 +50,7 @@ cluster:
       namespace: velero
       name: velero-server
   backupBucket: nexus-ci-use1-velero-111111111111
-  ciIdentity: https://github.com/SergeAbroyan/nexus-applications/.github/workflows/ci.yaml@refs/heads/main
+  ciIdentity: https://github.com/example-owner/nexus-applications/.github/workflows/ci.yaml@refs/heads/main
   slackWebhookSecretName: nexus/alerts/slack-webhook-url
   alertTopicArn: arn:aws:sns:us-east-1:111111111111:nexus-ci-use1-alerts
   grafanaAdminSecretArn: arn:aws:secretsmanager:us-east-1:111111111111:secret:nexus-ci-use1/grafana/admin-password-AbCdEf
