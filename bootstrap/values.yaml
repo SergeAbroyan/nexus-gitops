@@ -1,5 +1,7 @@
 project: nexus-platform
 
+compareOptions: ServerSideDiff=true
+
 syncPolicy:
   automated:
     prune: true

@@ -8,6 +8,9 @@ metadata:
   namespace: {{ $root.Release.Namespace }}
   annotations:
     argocd.argoproj.io/sync-wave: {{ .wave | quote }}
+    {{- with $root.Values.compareOptions }}
+    argocd.argoproj.io/compare-options: {{ . | quote }}
+    {{- end }}
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
