@@ -5,6 +5,10 @@ metadata:
 spec:
   validationActions:
     - Deny
+  validationConfigurations:
+    required: true
+    mutateDigest: false
+    verifyDigest: false
   failurePolicy: Fail
   webhookConfiguration:
     timeoutSeconds: 20
