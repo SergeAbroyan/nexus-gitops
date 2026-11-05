@@ -10,6 +10,9 @@ kubeControllerManager:
 kubeScheduler:
   enabled: false
 
+prometheus-node-exporter:
+  priorityClassName: node-agent
+
 prometheusOperator:
   nodeSelector:
     role: system

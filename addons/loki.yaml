@@ -59,6 +59,7 @@ resultsCache:
 
 lokiCanary:
   enabled: true
+  priorityClassName: node-agent
   resources:
     requests:
       cpu: 10m

@@ -1,5 +1,9 @@
 amiAlias: al2023@latest
 
+nodeAgentPriorityClass:
+  name: node-agent
+  value: 1000000
+
 instanceSizes:
   - large
   - xlarge

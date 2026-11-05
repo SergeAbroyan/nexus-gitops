@@ -1,0 +1,8 @@
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: {{ required "nodeAgentPriorityClass.name is required" .Values.nodeAgentPriorityClass.name }}
+value: {{ required "nodeAgentPriorityClass.value is required" .Values.nodeAgentPriorityClass.value | int }}
+globalDefault: false
+preemptionPolicy: PreemptLowerPriority
+description: Agents that run once on every node, such as metric and log collectors, and must displace ordinary workloads to start.

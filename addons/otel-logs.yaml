@@ -1,5 +1,6 @@
 fullnameOverride: otel-logs
 mode: daemonset
+priorityClassName: node-agent
 
 image:
   repository: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib
