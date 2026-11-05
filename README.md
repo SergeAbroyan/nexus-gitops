@@ -337,7 +337,10 @@ ignores differences in that webhook's `failurePolicy` instead of fighting
 ## Security
 
 - Kyverno rejects unsigned Nexus images and insecure workloads; Policy Reporter
-  shows every policy result in a UI.
+  shows every policy result in a UI. Kyverno checks the signature of every new
+  pod but does not rewrite image references to digests: ECR tags are immutable
+  commit SHAs, so a tag already names exactly one image, and Git and the
+  cluster stay identical.
 - Trivy Operator scans every running image for fixable high and critical
   vulnerabilities, checks workload configuration and RBAC, and looks for
   secrets in images. Results are `VulnerabilityReport` and
