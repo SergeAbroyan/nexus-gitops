@@ -1,5 +1,5 @@
 image:
-  tag: "0.1.0"
+  tag: "28df39097026c4ed563fdd2ceef12e1daedcfdf6"
 autoscaling:
   minReplicas: 1
   maxReplicas: 5
