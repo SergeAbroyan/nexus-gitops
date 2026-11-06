@@ -2,7 +2,7 @@ apiVersion: v2
 name: nexus-runtime
 description: Shared namespace, service-mesh, and observability resources for Nexus
 type: application
-version: 0.5.0
+version: 0.5.1
 appVersion: "1.0.0"
 dependencies:
   - name: nexus-base

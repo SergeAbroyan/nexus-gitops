@@ -10,7 +10,12 @@ spec:
     matchLabels:
       app.kubernetes.io/part-of: nexus
   podMetricsEndpoints:
-    - targetPort: 15020
+    - port: http
       path: /stats/prometheus
       interval: {{ .Values.observability.scrapeInterval }}
+      relabelings:
+        - sourceLabels:
+            - __meta_kubernetes_pod_ip
+          targetLabel: __address__
+          replacement: "$1:15020"
 {{- end }}
