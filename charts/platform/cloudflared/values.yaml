@@ -1,0 +1,72 @@
+image:
+  repository: cloudflare/cloudflared
+  pullPolicy: IfNotPresent
+
+region: ""
+
+tunnel:
+  tokenSecretName: ""
+  refreshInterval: 1h
+
+replicaCount: 2
+
+metricsPort: 2000
+
+serviceAccount:
+  create: true
+  name: cloudflared
+  automountServiceAccountToken: false
+
+resources:
+  requests:
+    cpu: 25m
+    memory: 64Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+nodeSelector:
+  role: general
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+probes:
+  startup:
+    httpGet:
+      path: /ready
+      port: http
+    failureThreshold: 30
+    periodSeconds: 2
+  readiness:
+    httpGet:
+      path: /ready
+      port: http
+    periodSeconds: 10
+  liveness:
+    httpGet:
+      path: /ready
+      port: http
+    periodSeconds: 10
+    failureThreshold: 3
+
+disruptionBudget:
+  enabled: true
+  maxUnavailable: 1
+
+topologySpread:
+  enabled: true
+  topologyKey: kubernetes.io/hostname
+
+terminationGracePeriodSeconds: 30

@@ -219,6 +219,9 @@ platform:
   cloudbeaver:
     wave: 4
     namespace: cloudbeaver
+  cloudflared:
+    wave: 4
+    namespace: cloudflared
 
 applications:
   runtime:

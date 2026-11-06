@@ -2,6 +2,7 @@ workloadSecurity:
   namespaces:
     - nexus
     - cloudbeaver
+    - cloudflared
 
 imageVerification:
   namespaces:

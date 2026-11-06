@@ -1,0 +1,68 @@
+{{- if .Values.tunnel.tokenSecretName }}
+{{- $name := "cloudflared" -}}
+{{- $partOf := "nexus" -}}
+{{- $component := "admin-tunnel" -}}
+{{- $tokenSecret := printf "%s-token" $name -}}
+{{- $labels := dict "root" . "name" $name "partOf" $partOf "component" $component -}}
+{{ include "nexus-base.namespace" (dict "root" . "meshEnabled" false) }}
+---
+apiVersion: external-secrets.io/v1
+kind: SecretStore
+metadata:
+  name: aws-secrets-manager
+  labels:
+    {{- include "nexus-base.labels" $labels | nindent 4 }}
+spec:
+  provider:
+    aws:
+      service: SecretsManager
+      region: {{ required "region is required" .Values.region | quote }}
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: {{ $tokenSecret }}
+  labels:
+    {{- include "nexus-base.labels" $labels | nindent 4 }}
+spec:
+  refreshInterval: {{ .Values.tunnel.refreshInterval }}
+  secretStoreRef:
+    name: aws-secrets-manager
+    kind: SecretStore
+  target:
+    name: {{ $tokenSecret }}
+    creationPolicy: Owner
+  data:
+    - secretKey: token
+      remoteRef:
+        key: {{ .Values.tunnel.tokenSecretName | quote }}
+{{- $workload := dict
+  "replicaCount" .Values.replicaCount
+  "revisionHistoryLimit" 3
+  "serviceAccount" .Values.serviceAccount
+  "image" (printf "%s:%s" .Values.image.repository (required "image.tag is required" .Values.image.tag | toString))
+  "imagePullPolicy" .Values.image.pullPolicy
+  "containerName" $name
+  "args" (list "tunnel" "--metrics" (printf "0.0.0.0:%d" (int .Values.metricsPort)) "run")
+  "port" .Values.metricsPort
+  "env" (list (dict "name" "TUNNEL_TOKEN" "valueFrom" (dict "secretKeyRef" (dict "name" $tokenSecret "key" "token"))))
+  "probes" .Values.probes
+  "resources" .Values.resources
+  "podSecurityContext" .Values.podSecurityContext
+  "containerSecurityContext" .Values.containerSecurityContext
+  "terminationGracePeriodSeconds" .Values.terminationGracePeriodSeconds
+  "nodeSelector" .Values.nodeSelector
+  "podLabels" (dict "app.kubernetes.io/managed-by" .Release.Service)
+  "service" (dict "enabled" false)
+  "autoscaling" (dict "enabled" false)
+  "disruptionBudget" .Values.disruptionBudget
+  "topologySpread" .Values.topologySpread
+-}}
+{{ include "nexus-base.workload" (dict
+  "root" .
+  "name" $name
+  "partOf" $partOf
+  "component" $component
+  "workload" $workload
+) }}
+{{- end }}

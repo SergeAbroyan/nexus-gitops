@@ -6,6 +6,7 @@
 {{- $profilingAddress := printf "http://pyroscope.%s.svc.cluster.local:4040" (index .Values.addons "pyroscope").namespace -}}
 {{- $slack := .Values.alerting.slack -}}
 {{- $prober := printf "blackbox-exporter.%s.svc.cluster.local:9115" (index .Values.addons "blackbox-exporter").namespace -}}
+{{- $adminHosts := (default (dict) $cluster.adminAccess).hostnames | default (dict) -}}
 istiod:
   values:
     meshConfig:
@@ -93,6 +94,9 @@ monitoring:
   values:
     prometheus:
       prometheusSpec:
+        {{- with $adminHosts.prometheus }}
+        externalUrl: {{ printf "https://%s" . | quote }}
+        {{- end }}
         storageSpec:
           volumeClaimTemplate:
             spec:
@@ -136,6 +140,9 @@ monitoring:
                 send_resolved: true
           {{- end }}
       alertmanagerSpec:
+        {{- with $adminHosts.alertmanager }}
+        externalUrl: {{ printf "https://%s" . | quote }}
+        {{- end }}
         {{- if $slack.enabled }}
         secrets:
           - alertmanager-slack
@@ -147,6 +154,11 @@ monitoring:
     grafana:
       serviceAccount:
         name: {{ $accounts.grafana.name }}
+      {{- with $adminHosts.grafana }}
+      grafana.ini:
+        server:
+          root_url: {{ printf "https://%s" . | quote }}
+      {{- end }}
       persistence:
         storageClassName: {{ .Values.storageClassName }}
       additionalDataSources:
@@ -275,6 +287,13 @@ cloudbeaver:
   values:
     persistence:
       storageClassName: {{ .Values.storageClassName }}
+cloudflared:
+  values:
+    region: {{ $cluster.region | quote }}
+    {{- with $cluster.adminAccess }}
+    tunnel:
+      tokenSecretName: {{ .tunnelTokenSecretName | quote }}
+    {{- end }}
 ingress-config:
   namespace: {{ $gateway.namespace }}
   values:
