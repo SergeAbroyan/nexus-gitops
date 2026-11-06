@@ -2,4 +2,4 @@ apiVersion: v2
 name: nexus-bootstrap
 description: Argo CD AppProject and Applications for every Nexus add-on, platform chart, and application
 type: application
-version: 0.2.0
+version: 0.3.0

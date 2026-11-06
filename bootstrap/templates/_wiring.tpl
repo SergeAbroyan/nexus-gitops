@@ -67,6 +67,8 @@ trivy-operator:
   values:
     serviceAccount:
       name: {{ $accounts.trivyOperator.name }}
+    trivy:
+      storageClassName: {{ .Values.storageClassName }}
 velero:
   namespace: {{ $accounts.velero.namespace }}
   values:

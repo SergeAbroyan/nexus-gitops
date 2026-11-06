@@ -60,6 +60,8 @@ resultsCache:
 lokiCanary:
   enabled: true
   priorityClassName: node-agent
+  tolerations:
+    - operator: Exists
   resources:
     requests:
       cpu: 10m

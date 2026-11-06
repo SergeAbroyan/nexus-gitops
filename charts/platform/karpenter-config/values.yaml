@@ -15,7 +15,7 @@ nodeClass:
 
 nodePools:
   system:
-    weight: 100
+    weight: 10
     capacityTypes:
       - on-demand
   general:
