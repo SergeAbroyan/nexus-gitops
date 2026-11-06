@@ -2,7 +2,7 @@ apiVersion: v2
 name: nexus-worker
 description: Nexus asynchronous queue worker
 type: application
-version: 0.5.1
+version: 0.5.2
 appVersion: "1.0.0"
 dependencies:
   - name: nexus-base

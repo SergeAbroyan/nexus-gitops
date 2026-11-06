@@ -37,8 +37,10 @@ spec:
       metricType: Utilization
       metadata:
         value: {{ required "autoscaling.cpuUtilization is required" .Values.autoscaling.cpuUtilization | quote }}
+    {{- with .Values.autoscaling.memoryUtilization }}
     - type: memory
       metricType: Utilization
       metadata:
-        value: {{ required "autoscaling.memoryUtilization is required" .Values.autoscaling.memoryUtilization | quote }}
+        value: {{ . | quote }}
+    {{- end }}
 {{- end }}
