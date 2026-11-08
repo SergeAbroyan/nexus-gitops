@@ -1,6 +1,7 @@
 # 0008. A GitHub workflow promotes releases instead of Kargo
 
-Status: accepted
+Status: superseded by `nexus-applications` ADR 0008, which moved deployments
+to a `Deploy` workflow in the application repository
 
 ## Context
 

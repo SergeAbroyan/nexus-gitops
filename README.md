@@ -58,8 +58,7 @@ environments/
 docs/runbooks/               Alert response procedures and resilience drills
 docs/adr/                    Architecture decision records
 .github/workflows/
-├── validate.yaml            Secret scan and render, schema, and policy checks
-└── promote.yaml             Approved promotion to staging and production
+└── validate.yaml            Secret scan and render, schema, and policy checks
 renovate.json                Dependency updates for charts, images, and actions
 .pre-commit-config.yaml      Local checks before every commit
 ```
@@ -176,22 +175,22 @@ Values that differ per environment today:
 Image tags live in the environment files: `image.tag` for `api`, `worker`,
 and `cloudbeaver`. Application tags are immutable commit SHAs. The application
 pipeline in `nexus-applications` updates `image.tag` in the DEV files after it
-publishes and signs an image. Staging and production advance only through the
-`Promote release` workflow, described below.
+publishes and signs an image. Every other change to an application tag comes
+from the `Deploy` workflow in `nexus-applications`, described below.
 
 To change the catalog for one environment only, for example to try a new
 add-on version in DEV first, create `environments/<env>/bootstrap-values.yaml`
 with the override. The root Application loads it when it exists.
 
-## Promotion
+## Deployments
 
-`.github/workflows/promote.yaml` runs on demand from the Actions tab. Choose
-the target environment and the services; the workflow copies the image tags
-from the previous environment, DEV to staging or staging to production, commits
-the change, and Argo CD rolls it out. The job runs in a GitHub environment of
-the same name, so it waits for the reviewers configured on that environment
-before it changes anything. Every promotion is a commit, so the history of
-`environments/` is the deployment log, and a rollback is a revert.
+Environments are folders here, not branches. The `Deploy` workflow in
+`nexus-applications` writes image tags to any environment: the version you
+choose, what the previous environment runs, or the newest build. It verifies
+that CI signed each image first, and production waits for the reviewers of the
+`production` GitHub environment. Every deployment is a commit, so the history
+of `environments/` is the deployment log, and a rollback is a deployment of an
+earlier SHA.
 
 ## Common changes
 
