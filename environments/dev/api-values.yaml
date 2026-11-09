@@ -1,5 +1,5 @@
 image:
-  tag: "28df39097026c4ed563fdd2ceef12e1daedcfdf6"
+  tag: "6bb2bbf3a359ffbf84732543621bf13e2bd33daa"
 autoscaling:
   minReplicas: 1
   maxReplicas: 5
