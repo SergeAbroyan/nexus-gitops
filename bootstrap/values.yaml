@@ -29,7 +29,7 @@ tracing:
 
 alerting:
   slack:
-    enabled: true
+    enabled: false
     channel: "#nexus-alerts"
 
 addons:
