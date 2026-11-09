@@ -40,6 +40,14 @@ alternateConfig:
       send_batch_size: 1024
       timeout: 5s
   service:
+    telemetry:
+      metrics:
+        readers:
+          - pull:
+              exporter:
+                prometheus:
+                  host: ${env:MY_POD_IP}
+                  port: 8888
     extensions:
       - health_check
     pipelines:

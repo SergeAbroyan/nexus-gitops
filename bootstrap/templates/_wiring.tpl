@@ -129,6 +129,7 @@ monitoring:
           - name: nexus-sns
             sns_configs:
               - topic_arn: {{ $cluster.alertTopicArn | quote }}
+                subject: {{ `'[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}'` }}
                 send_resolved: true
                 sigv4:
                   region: {{ $cluster.region | quote }}
