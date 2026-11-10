@@ -12,9 +12,7 @@ the CRDs catalog, and enforces `require-workload-security` on the Nexus charts
 with the Kyverno CLI.
 
 Actions are pinned to commit SHAs with their version alongside, and the
-kubeconform image to a digest. Renovate opens a weekly pull request for each
-group of updates: add-on charts in `bootstrap/values.yaml`, the CloudBeaver
-image, the Helm and Kyverno CLI versions, and the actions.
+kubeconform image to a digest.
 
 Install the hooks once to run the fast checks before every commit: whitespace,
 YAML and JSON syntax, Gitleaks, actionlint, and Helm lint of the library and

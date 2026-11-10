@@ -35,7 +35,6 @@ docs/                        Architecture, workloads, operations, observability,
 └── adr/                     Architecture decision records
 .github/workflows/
 └── validate.yaml            Secret scan and render, schema, and policy checks
-renovate.json                Dependency updates for charts, images, and actions
 .pre-commit-config.yaml      Local checks before every commit
 ```
 

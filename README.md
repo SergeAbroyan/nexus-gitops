@@ -59,8 +59,7 @@ flowchart LR
 | Backup | Velero, scheduled nightly |
 | Access | `cloudflared` for the Cloudflare Tunnel, CloudBeaver for database administration |
 
-Exact chart versions are pinned in [`bootstrap/values.yaml`](bootstrap/values.yaml)
-and updated through Renovate pull requests.
+Exact chart versions are pinned in [`bootstrap/values.yaml`](bootstrap/values.yaml).
 
 ## Delivery
 
