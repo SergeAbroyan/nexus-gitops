@@ -41,9 +41,9 @@ renovate.json                Dependency updates for charts, images, and actions
 
 ## How Argo CD deploys a cluster
 
-This repository is private. Argo CD reads it over SSH with a read-only GitHub
-deploy key that Terraform installs from Secrets Manager; the `nexus-platform`
-README explains how to create it.
+Argo CD reads this repository over SSH with a read-only GitHub deploy key that
+Terraform installs from Secrets Manager; the `nexus-platform` README explains
+how to create it.
 
 Terraform creates two Argo CD objects in each cluster:
 
